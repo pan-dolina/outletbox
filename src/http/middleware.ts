@@ -2,7 +2,7 @@ import type { RequestHandler } from 'express';
 import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import { newFlowToken, safeEqual } from '../crypto.js';
-import { isLang, LANG_COOKIE, negotiateLang, t, type MessageKey } from '../i18n.js';
+import { isLang, LANG_COOKIE, negotiateLang, t, type Lang, type MessageKey } from '../i18n.js';
 import { log, redact } from '../log.js';
 import { getAccessSession } from '../services/access.js';
 import { getSession } from '../services/auth.js';
@@ -63,7 +63,11 @@ export function requestLogger(): RequestHandler {
 export function languageMiddleware(): RequestHandler {
   return (req, _res, next) => {
     const fromCookie = parseCookies(req.headers.cookie)[LANG_COOKIE];
-    req.lang = isLang(fromCookie) ? fromCookie : negotiateLang(req.headers['accept-language']);
+    // Whether the visitor chose the language themselves matters on the delivery
+    // pages: without a choice of their own they get the language the link was
+    // issued in, with one, theirs.
+    req.langExplicit = isLang(fromCookie);
+    req.lang = req.langExplicit ? (fromCookie as Lang) : negotiateLang(req.headers['accept-language']);
     next();
   };
 }

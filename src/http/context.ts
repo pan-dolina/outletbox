@@ -23,6 +23,8 @@ declare global {
     interface Request {
       /** UI language for this request (cookie, then Accept-Language, then English). */
       lang: Lang;
+      /** True when the language came from the switcher cookie rather than the browser. */
+      langExplicit?: boolean;
       session?: Session;
       sessionId?: string;
       /** The delivery link addressed by /d/<token>. */

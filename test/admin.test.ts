@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { listLinksForCase } from '../src/services/links.js';
 import {
   adminDownload, adminPost, boot, pathOf, randomBytes, RECIPIENT, unlock, uploadFile, Visitor, type AdminSession, type TestApp,
 } from './helpers.js';
@@ -120,6 +121,26 @@ describe('recipient links', () => {
     expect(body).toContain('/d/');
     expect(app.mailer.recent().length).toBe(before);
     expect(body).toContain('never sends the link itself');
+  });
+
+  it('offers the panel language for a new recipient and stores what was picked', async () => {
+    const id = await newCase('Language pick');
+    // The form starts on the language the administrator is reading the panel in.
+    const form = await (await fetch(`${app.base}/admin/cases/${id}`, { headers: { cookie: session.cookie, 'accept-language': 'pl-PL,pl' } })).text();
+    expect(form).toContain('<option value="pl" selected>');
+
+    await adminPost(app, session, `/admin/cases/${id}/links`, { label: 'Jan', email: RECIPIENT, lang: 'pl' });
+    const links = listLinksForCase(app.ctx.db, id);
+    expect(links[0]!.lang).toBe('pl');
+
+    const listed = await (await fetch(`${app.base}/admin/cases/${id}`, { headers: { cookie: session.cookie } })).text();
+    expect(listed).toContain('>PL<');
+  });
+
+  it('falls back to the panel language when the form does not say', async () => {
+    const id = await newCase('No language field');
+    await adminPost(app, session, `/admin/cases/${id}/links`, { label: 'Jan', email: RECIPIENT });
+    expect(listLinksForCase(app.ctx.db, id)[0]!.lang).toBe('en');
   });
 
   it('rejects a link without a usable address', async () => {

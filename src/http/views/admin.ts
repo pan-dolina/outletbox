@@ -1,6 +1,6 @@
 import { formatSize } from '../../config.js';
 import type { Config } from '../../config.js';
-import { clientMessages, translator, type Lang, type Translator } from '../../i18n.js';
+import { clientMessages, LANGS, translator, type Lang, type Translator } from '../../i18n.js';
 import type { AuditRow } from '../../services/audit.js';
 import type { Case, CaseSummary } from '../../services/cases.js';
 import type { ItemRow } from '../../services/items.js';
@@ -195,17 +195,22 @@ export function casePage(v: AdminViewContext, d: CasePageData): string {
             <label>${t('links.email')} <input name="email" type="email" required maxlength="254" placeholder="jan.kowalski@example.com"></label>
             <label>${t('links.expires')} <input name="expires_at" type="datetime-local"></label>
             <label>${t('links.max_opens')} <input name="max_opens" type="number" min="1" step="1" placeholder="3"></label>
+            <label>${t('links.lang')} <select name="lang">
+              ${LANGS.map((l) => html`<option value="${l}" ${l === v.lang ? raw('selected') : ''}>${t(`lang.${l}`)}</option>`)}
+            </select></label>
             <div class="grid-full muted small">${t('links.max_opens_hint')}</div>
+            <div class="grid-full muted small">${t('links.lang_hint')}</div>
             <div><button class="btn btn-primary" type="submit" ${c.status !== 'open' ? 'disabled' : ''}>${t('links.submit')}</button></div>
           </form>
         </details>
         ${d.links.length === 0 ? html`<p class="muted">${t('links.empty')}</p>` : html`
         <table>
-          <thead><tr><th>${t('links.col.recipient')}</th><th>${t('links.col.state')}</th><th>${t('links.col.expires')}</th><th>${t('links.col.opens')}</th><th>${t('links.col.last_used')}</th><th></th></tr></thead>
+          <thead><tr><th>${t('links.col.recipient')}</th><th>${t('links.col.lang')}</th><th>${t('links.col.state')}</th><th>${t('links.col.expires')}</th><th>${t('links.col.opens')}</th><th>${t('links.col.last_used')}</th><th></th></tr></thead>
           <tbody>${d.links.map((l) => {
             const state = linkState(l, c);
             return html`<tr>
               <td>${l.label}<br><span class="muted small">${l.recipient_email}</span><br><span class="muted small mono">${l.token_hint}…</span></td>
+              <td><span class="badge" lang="${l.lang}">${l.lang.toUpperCase()}</span></td>
               <td><span class="badge badge-${state}">${t(`links.state.${state}`)}</span></td>
               <td>${l.expires_at ? fmtDate(l.expires_at, v.lang) : t('common.no_expiry')}</td>
               <td>${l.max_opens != null ? t('links.opens', { used: l.opens_used, max: l.max_opens }) : t('links.opens_unlimited', { used: l.opens_used })}</td>

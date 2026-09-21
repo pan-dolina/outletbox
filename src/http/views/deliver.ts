@@ -3,7 +3,7 @@ import { translator, type Lang } from '../../i18n.js';
 import type { Case } from '../../services/cases.js';
 import type { RecipientItem } from '../../services/items.js';
 import type { Link } from '../../services/links.js';
-import { html, layout, type SafeHtml } from '../html.js';
+import { html, layout, raw, type SafeHtml } from '../html.js';
 import { fmtDate } from './admin.js';
 
 export interface DeliverViewBase {
@@ -44,19 +44,38 @@ export function deliverEmailPage(d: DeliverViewBase & { error?: string; notice?:
   });
 }
 
+export const CODE_DIGITS = 6;
+
+/**
+ * One input per digit. Each box posts under the same name, so the six values
+ * arrive as an array and the server joins them: the form works with JavaScript
+ * disabled, and `otp.js` only adds what a single field gets for free anyway —
+ * moving between boxes, and spreading a pasted code across them.
+ */
+function codeBoxes(t: ReturnType<typeof translator>): SafeHtml {
+  const boxes = Array.from({ length: CODE_DIGITS }, (_, i) => html`<input
+      class="otp-box" name="code" type="text" required size="1" inputmode="numeric" pattern="[0-9]*"
+      autocomplete="${i === 0 ? 'one-time-code' : 'off'}" ${i === 0 ? raw('autofocus') : ''}
+      aria-label="${t('deliver.code.digit', { n: i + 1, total: CODE_DIGITS })}">`);
+  return html`<fieldset class="otp" data-otp>
+    <legend>${t('deliver.code.label')}</legend>
+    <div class="otp-boxes">${boxes}</div>
+    <p class="muted small otp-hint">${t('deliver.code.paste_hint')}</p>
+  </fieldset>`;
+}
+
 /** Step 2: the code that was mailed. */
-export function deliverCodePage(d: DeliverViewBase & { minutes: number; error?: string; notice?: string; attemptsLeft?: number }): string {
+export function deliverCodePage(d: DeliverViewBase & { minutes: number; error?: string; notice?: string | null; attemptsLeft?: number }): string {
   const t = translator(d.lang);
   return layout({
     lang: d.lang, title: t('deliver.code.title'), path: d.path,
+    scripts: ['/static/otp.js'],
     body: html`<section class="card narrow">
       <h1>${t('deliver.code.title')}</h1>
-      ${flash(d.error)}${flash(d.notice ?? t('deliver.code.sent', { minutes: d.minutes }), 'ok')}
+      ${flash(d.error)}${d.notice === null ? '' : flash(d.notice ?? t('deliver.code.sent', { minutes: d.minutes }), 'ok')}
       <form method="post" action="${d.base}/code" class="stack">
         <input type="hidden" name="_flow" value="${d.flowToken}">
-        <label>${t('deliver.code.label')}
-          <input name="code" class="code-input" required autofocus inputmode="numeric" autocomplete="one-time-code" maxlength="16" pattern="[0-9 -]*">
-        </label>
+        ${codeBoxes(t)}
         ${d.attemptsLeft !== undefined ? html`<p class="muted small">${t('deliver.code.attempts_left', { n: d.attemptsLeft })}</p>` : ''}
         <button class="btn btn-primary" type="submit">${t('deliver.code.submit')}</button>
       </form>

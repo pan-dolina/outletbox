@@ -60,6 +60,10 @@ export function deliverRouter(ctx: AppContext): Router {
   function load(req: Request, res: Response): ResolvedLink | null {
     const token = String(req.params.token ?? '');
     const resolved = TOKEN_RE.test(token) ? resolveToken(ctx.db, token) : null;
+    // These pages speak the language the link was issued in, because that is the
+    // language the administrator knows this recipient reads. A visitor who picks
+    // one in the footer keeps it: their own choice outranks the assumption.
+    if (resolved && !req.langExplicit) req.lang = resolved.link.lang;
     if (unavailable(req, res, resolved)) return null;
     req.delivery = resolved!;
     req.deliveryToken = token;
@@ -67,6 +71,17 @@ export function deliverRouter(ctx: AppContext): Router {
   }
 
   const base = (req: Request): string => `/d/${req.deliveryToken}`;
+
+  /**
+   * The code form posts one `code` field per digit box, so a browser sends six
+   * of them; a client that sends the code as one string still works. Joining is
+   * all it takes — `verifyChallenge` normalises and length-checks afterwards.
+   */
+  function codeFromBody(body: unknown): string {
+    const v = (body as Record<string, unknown> | undefined)?.code;
+    const joined = Array.isArray(v) ? v.map((part) => (typeof part === 'string' ? part : '')).join('') : typeof v === 'string' ? v : '';
+    return joined.slice(0, 64);
+  }
 
   function pendingChallenge(linkId: string, flowToken: string): boolean {
     const row = ctx.db.prepare(
@@ -136,8 +151,10 @@ export function deliverRouter(ctx: AppContext): Router {
       throw err;
     }
 
+    // The message is written in the recipient's language, which is a property of
+    // the link, not of the browser that happens to be asking for the code.
     ctx.mailer.send(accessCodeMail({
-      lang: req.lang, to: resolved.link.recipient_email, brand: ctx.cfg.brand.name,
+      lang: resolved.link.lang, to: resolved.link.recipient_email, brand: ctx.cfg.brand.name,
       caseName: resolved.case.name, code: created.code, ttlMinutes: minutes,
     })).then(() => {
       audit(ctx.db, { actorType: 'recipient', action: 'access.code_sent', caseId: resolved.case.id, linkId: resolved.link.id, ip: req.ip });
@@ -156,12 +173,12 @@ export function deliverRouter(ctx: AppContext): Router {
     const view = { lang: req.lang, path: base(req), flowToken: req.flowToken!, base: base(req) };
     const minutes = Math.round(ctx.cfg.accessCodeTtlMs / 60_000);
     const result = verifyChallenge(ctx.db, ctx.cfg, {
-      linkId: resolved.link.id, flowToken: req.flowToken!, code: String((req.body as Record<string, unknown>).code ?? ''),
+      linkId: resolved.link.id, flowToken: req.flowToken!, code: codeFromBody(req.body),
     });
 
     if (result.status === 'invalid') {
       audit(ctx.db, { actorType: 'recipient', action: 'access.code_failed', caseId: resolved.case.id, linkId: resolved.link.id, ip: req.ip, details: { attempts_left: result.attemptsLeft } });
-      res.status(401).type('html').send(deliverCodePage({ ...view, minutes, error: t(req.lang, 'deliver.code.invalid'), attemptsLeft: result.attemptsLeft, notice: ' ' }));
+      res.status(401).type('html').send(deliverCodePage({ ...view, minutes, error: t(req.lang, 'deliver.code.invalid'), attemptsLeft: result.attemptsLeft, notice: null }));
       return;
     }
     if (result.status === 'gone') {

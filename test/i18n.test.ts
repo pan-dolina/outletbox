@@ -21,12 +21,25 @@ describe('dictionaries', () => {
 
 describe('negotiation in the browser', () => {
   it('answers a Polish browser in Polish and everyone else in English', async () => {
-    const link = app.mkLink(app.mkCase().id);
+    const pl = await (await fetch(`${app.base}/admin/login`, { headers: { 'accept-language': 'pl-PL,pl;q=0.9' } })).text();
+    expect(pl).toContain('Logowanie administratora');
+    const de = await (await fetch(`${app.base}/admin/login`, { headers: { 'accept-language': 'de-DE,de;q=0.9,pl;q=0.5' } })).text();
+    expect(de).toContain('Administrator login');
+  });
+
+  it('shows the delivery in the language the link was issued in, whatever the browser asks for', async () => {
+    const link = app.mkLink(app.mkCase().id, { lang: 'pl' });
     const p = pathOf(link.url);
-    const pl = await (await fetch(`${app.base}${p}`, { headers: { 'accept-language': 'pl-PL,pl;q=0.9' } })).text();
-    expect(pl).toContain('Potwierdź swój adres e-mail');
-    const de = await (await fetch(`${app.base}${p}`, { headers: { 'accept-language': 'de-DE,de;q=0.9,pl;q=0.5' } })).text();
-    expect(de).toContain('Confirm your e-mail address');
+    const de = await (await fetch(`${app.base}${p}`, { headers: { 'accept-language': 'de-DE,de;q=0.9' } })).text();
+    expect(de).toContain('Potwierdź swój adres e-mail');
+  });
+
+  it('lets the recipient override that language with the switcher', async () => {
+    const link = app.mkLink(app.mkCase().id, { lang: 'pl' });
+    const chosen = await fetch(`${app.base}/lang/en`, { redirect: 'manual' });
+    const cookie = chosen.headers.get('set-cookie')!.split(';')[0]!;
+    const page = await (await fetch(`${app.base}${pathOf(link.url)}`, { headers: { cookie, 'accept-language': 'pl-PL,pl' } })).text();
+    expect(page).toContain('Confirm your e-mail address');
   });
 
   it('remembers an explicit choice in a cookie', async () => {
@@ -44,8 +57,22 @@ describe('negotiation in the browser', () => {
     expect(res.headers.get('location')).toBe('/');
   });
 
-  it('sends the code e-mail in the language the recipient is reading', async () => {
-    const link = app.mkLink(app.mkCase('Sprawa PL').id);
+  it('sends the code e-mail in the language the link was issued in, not the browser\'s', async () => {
+    const link = app.mkLink(app.mkCase('Sprawa PL').id, { lang: 'pl' });
+    const p = pathOf(link.url);
+    const v = new Visitor(app.base);
+    await v.getPage(p);
+    const res = await fetch(`${app.base}${p}/email`, {
+      method: 'POST', redirect: 'manual',
+      headers: { cookie: v.cookieHeader(), 'content-type': 'application/x-www-form-urlencoded', origin: app.base, 'accept-language': 'en-GB,en' },
+      body: new URLSearchParams({ _flow: v.flowToken(), email: RECIPIENT }),
+    });
+    expect(res.status).toBe(200);
+    expect(app.mailer.recent()[0]!.subject).toMatch(/^Kod dostępu: \d{6}$/);
+  });
+
+  it('keeps an English recipient on English even when the browser is Polish', async () => {
+    const link = app.mkLink(app.mkCase('English case').id, { lang: 'en' });
     const p = pathOf(link.url);
     const v = new Visitor(app.base);
     await v.getPage(p);
@@ -55,6 +82,6 @@ describe('negotiation in the browser', () => {
       body: new URLSearchParams({ _flow: v.flowToken(), email: RECIPIENT }),
     });
     expect(res.status).toBe(200);
-    expect(app.mailer.recent()[0]!.subject).toMatch(/^Kod dostępu: \d{6}$/);
+    expect(app.mailer.recent()[0]!.subject).toMatch(/^Access code: \d{6}$/);
   });
 });

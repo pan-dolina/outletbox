@@ -382,13 +382,16 @@ export function adminRouter(ctx: AppContext): Router {
         recipientEmail: field(req, 'email'),
         expiresAt,
         maxOpens: maxOpensRaw ? Number(maxOpensRaw) : null,
+        // Defaults to the language of the panel the administrator is using,
+        // which the form has already pre-selected for them.
+        lang: field(req, 'lang') || req.lang,
       });
     } catch (err) {
       renderCase(req, res, id, { error: (err as Error).message }, 400);
       return;
     }
     const { link, url } = created;
-    audit(ctx.db, { actorType: 'admin', actorId: req.session!.admin.id, action: 'link.create', caseId: id, linkId: link.id, ip: req.ip, details: { label: link.label, email: link.recipient_email, expires_at: link.expires_at, max_opens: link.max_opens } });
+    audit(ctx.db, { actorType: 'admin', actorId: req.session!.admin.id, action: 'link.create', caseId: id, linkId: link.id, ip: req.ip, details: { label: link.label, email: link.recipient_email, expires_at: link.expires_at, max_opens: link.max_opens, lang: link.lang } });
     // The full URL is shown exactly once, in this response, and is not stored
     // anywhere. The application never mails it: handing the link over is the
     // administrator's job, and only the one-time code goes out by e-mail.

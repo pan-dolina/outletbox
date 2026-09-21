@@ -17,6 +17,7 @@ drive and not a sharing tool: no public links, no previews, no self-registration
 - **Deployment:** one container + one volume; optional MinIO profile for S3 testing.
 - **Admin 2FA:** TOTP (RFC 6238) with recovery codes, optionally enforced for every admin.
 - **UI languages:** English and Polish, for the panel, the recipient pages and the e-mails.
+  Each recipient is addressed in the language chosen when they were added.
 - **Light and dark theme:** follows `prefers-color-scheme`. No toggle, no script, no cookie.
 
 ---
@@ -92,7 +93,8 @@ node dist/cli.js migrate
   ─────                                        ─────────
   create a case
   upload files / write notes
-  add a recipient (label + e-mail + limits)
+  add a recipient (label + e-mail + limits
+   + the language they are addressed in)
   → link https://…/d/<token>                   opens the link
     (handed over by the administrator: in
      person, by chat, by their own e-mail —
@@ -120,6 +122,14 @@ Design points behind that flow:
 - **One opening = one accepted code.** `max_opens` caps how many times the delivery may be
   unlocked; downloads inside a live session are not counted, and a session that was opened
   while an opening was still available is allowed to finish.
+- **Every recipient has their own language.** The administrator picks it when adding the
+  person — the form starts on the language the panel is being read in — and the code
+  e-mail is written in it, whatever browser the code is later requested from. The delivery
+  pages follow the same language until the visitor picks another one in the footer.
+- **The code is typed into six boxes, one digit each.** The whole code can be pasted into
+  any of them, and the form is submitted as soon as the sixth digit is there. The boxes
+  are ordinary inputs posting under the same name, so the page still works with
+  JavaScript switched off.
 - **Revoking a link, or closing the case, ends any session already open**, immediately.
 - The code is **never** written to the application log, never stored in clear (scrypt, the
   same work factor as an admin password) and never repeated in the audit trail.
@@ -199,7 +209,8 @@ One interface, four drivers ([`src/mail/`](src/mail/)). Every driver sends the s
 message: the one-time code. **The delivery link is never mailed by the application** — an
 administrator copies it from the panel and passes it to the recipient the way they
 normally reach them. A message that leaks therefore carries a code that is useless without
-the link, and a link that leaks is useless without the mailbox.
+the link, and a link that leaks is useless without the mailbox. The message is written in
+the language the link was issued in, not in the language of whoever asked for the code.
 
 | Driver | Use it for | Required settings |
 |---|---|---|
@@ -412,7 +423,7 @@ src/
     html.ts, views/    escaping tagged template, views
   server.ts            http.Server (timeouts, 100-continue), periodic cleanup, shutdown
   cli.ts               create-admin, reset-password, disable-totp, migrate, cleanup, test-mail
-public/                style.css, admin.js, admin-upload.js (tus client)
+public/                style.css, admin.js, admin-upload.js (tus client), otp.js (code boxes)
 ```
 
 Tables ([`migrations/001_init.sql`](migrations/001_init.sql)):
@@ -424,7 +435,7 @@ Tables ([`migrations/001_init.sql`](migrations/001_init.sql)):
   status uploading|ready|aborted|expired|missing|deleted, declared_size, size, sha256,
   created_by, timestamps)
 - `links` (id, case_id, label, recipient_email, token_hash, token_hint, expires_at,
-  revoked_at, max_opens, opens_used, last_used_at)
+  revoked_at, max_opens, opens_used, lang, last_used_at)
 - `challenges` (id, link_id, code_hash, flow_hash, attempts, expires_at, consumed_at, ip)
 - `access_sessions` (id_hash, link_id, csrf_token, expires_at, ip)
 - `audit_log` (ts, actor_type admin|recipient|system, actor_id, action, case_id, link_id,

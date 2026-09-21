@@ -2,12 +2,15 @@ import type { Config } from '../config.js';
 import type { Db } from '../db.js';
 import { now } from '../db.js';
 import { isValidEmail, newId, newToken, normalizeEmail, sha256Hex, TOKEN_RE } from '../crypto.js';
+import { DEFAULT_LANG, isLang, type Lang } from '../i18n.js';
 import { getCase, type Case } from './cases.js';
 
 export interface Link {
   id: string; case_id: string; label: string; recipient_email: string; token_hash: string; token_hint: string;
   expires_at: string | null; revoked_at: string | null;
   max_opens: number | null; opens_used: number;
+  /** Language this recipient is addressed in; the code e-mail is written in it. */
+  lang: Lang;
   created_at: string; last_used_at: string | null;
 }
 
@@ -21,6 +24,8 @@ export interface CreateLinkInput {
   recipientEmail: string;
   expiresAt?: Date | null;
   maxOpens?: number | null;
+  /** Defaults to English, as the pre-0.2.0 links effectively were. */
+  lang?: string | null;
 }
 
 export function createLink(db: Db, cfg: Config, input: CreateLinkInput): { link: Link; token: string; url: string } {
@@ -32,18 +37,19 @@ export function createLink(db: Db, cfg: Config, input: CreateLinkInput): { link:
   if (!getCase(db, input.caseId)) throw new Error('Case not found');
 
   const token = newToken();
+  const lang: Lang = isLang(input.lang) ? input.lang : DEFAULT_LANG;
   const link: Link = {
     id: newId('l'), case_id: input.caseId, label, recipient_email: email,
     token_hash: sha256Hex(token), token_hint: token.slice(0, 6),
     expires_at: input.expiresAt ? input.expiresAt.toISOString() : null, revoked_at: null,
-    max_opens: input.maxOpens ?? null, opens_used: 0,
+    max_opens: input.maxOpens ?? null, opens_used: 0, lang,
     created_at: now(), last_used_at: null,
   };
   db.prepare(
-    `INSERT INTO links (id, case_id, label, recipient_email, token_hash, token_hint, expires_at, revoked_at, max_opens, opens_used, created_at, last_used_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO links (id, case_id, label, recipient_email, token_hash, token_hint, expires_at, revoked_at, max_opens, opens_used, lang, created_at, last_used_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(link.id, link.case_id, link.label, link.recipient_email, link.token_hash, link.token_hint, link.expires_at, link.revoked_at,
-    link.max_opens, link.opens_used, link.created_at, link.last_used_at);
+    link.max_opens, link.opens_used, link.lang, link.created_at, link.last_used_at);
   // The clear-text token exists only in this return value; the database keeps its SHA-256.
   return { link, token, url: linkUrl(cfg, token) };
 }

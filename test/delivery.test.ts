@@ -57,6 +57,51 @@ describe('recipient unlock flow', () => {
     expect(Buffer.from(await dl.arrayBuffer()).equals(d.payload)).toBe(true);
   });
 
+  it('takes the code as six separate boxes, the way the browser posts them', async () => {
+    const d = await delivery();
+    const v = new Visitor(app.base);
+    await v.getPage(d.path);
+    const codeStep = await v.post(`${d.path}/email`, { email: RECIPIENT });
+    // One input per digit, all posting under the same name.
+    expect((codeStep.body.match(/class="otp-box"/g) ?? []).length).toBe(6);
+    expect(codeStep.body).toContain('name="code"');
+
+    const digits = lastCode(app).split('');
+    const body = new URLSearchParams();
+    body.append('_flow', v.flowToken());
+    for (const digit of digits) body.append('code', digit);
+    const res = await fetch(`${app.base}${d.path}/code`, {
+      method: 'POST', redirect: 'manual',
+      headers: { cookie: v.cookieHeader(), 'content-type': 'application/x-www-form-urlencoded', origin: app.base },
+      body,
+    });
+    expect(res.status).toBe(303);
+  });
+
+  it('still accepts the code as one field, and rejects a wrong one split across boxes', async () => {
+    const d = await delivery();
+    const v = new Visitor(app.base);
+    await v.getPage(d.path);
+    await v.post(`${d.path}/email`, { email: RECIPIENT });
+
+    // The real code with its first digit moved on by one: wrong, but the right shape.
+    const real = lastCode(app);
+    const wrong = new URLSearchParams();
+    wrong.append('_flow', v.flowToken());
+    for (const [i, digit] of [...real].entries()) wrong.append('code', i === 0 ? String((Number(digit) + 1) % 10) : digit);
+    const bad = await fetch(`${app.base}${d.path}/code`, {
+      method: 'POST', redirect: 'manual',
+      headers: { cookie: v.cookieHeader(), 'content-type': 'application/x-www-form-urlencoded', origin: app.base },
+      body: wrong,
+    });
+    expect(bad.status).toBe(401);
+
+    // The same challenge is still open, so the real code in a single field works.
+    v.lastBody = await bad.text();
+    const ok = await v.post(`${d.path}/code`, { code: lastCode(app) });
+    expect(ok.res.status).toBe(303);
+  });
+
   it('answers a wrong address exactly like a right one, but sends nothing', async () => {
     const d = await delivery();
     const v = new Visitor(app.base);

@@ -228,8 +228,27 @@ table.audit td.details > span { display: inline-block; max-width: 24rem; white-s
 .grid-full { grid-column: 1 / -1; }
 label.check { display: flex; flex-direction: row; align-items: center; gap: .5rem; font-weight: 400; }
 label.check input { width: auto; }
-/* The one-time code is short and typed from a phone: give it room and spacing. */
-.code-input { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 1.4rem; letter-spacing: .4rem; text-align: center; }
+/*
+ * One-time code: one box per digit. The boxes are inputs like any other, so a
+ * browser with JavaScript switched off still gets a usable form; otp.js only
+ * moves the caret between them. The width scales with the viewport because six
+ * fixed boxes plus their gaps do not fit a 320px phone.
+ */
+.otp { border: 0; padding: 0; margin: 0; min-width: 0; width: 100%; }
+.otp legend { padding: 0; font-weight: 600; }
+.otp-boxes { display: flex; gap: .4rem; margin: .5rem 0 .3rem; }
+.otp-hint { margin: 0; }
+.otp-box {
+  width: clamp(2.2rem, 12vw, 3rem); height: clamp(2.8rem, 15vw, 3.4rem); padding: 0;
+  font-family: var(--mono); font-size: 1.5rem; text-align: center; caret-color: var(--primary);
+  border: 1px solid var(--border); border-radius: 8px; background: var(--input-bg); color: var(--text);
+  transition: border-color .12s, box-shadow .12s;
+}
+/* An empty box is :invalid because it is required — so :valid means "has a digit". */
+.otp-box:valid { border-color: color-mix(in srgb, var(--primary) 45%, var(--border)); }
+.otp-box:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 25%, transparent); }
+/* Spacing the halves apart makes a six-digit code readable at a glance. */
+.otp-boxes > .otp-box:nth-child(3) { margin-right: .7rem; }
 .note { border: 1px solid var(--border); border-radius: 6px; padding: .8rem 1rem; margin-bottom: .8rem; }
 .note h3 { margin: 0 0 .4rem; font-size: 1rem; }
 .note-body { margin: 0; white-space: pre-wrap; word-break: break-word; font: inherit; background: none; border: none; padding: 0; }
