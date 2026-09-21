@@ -11,17 +11,36 @@ data/
 *.sqlite-shm
 *.sqlite-journal
 
-# Local configuration and secrets (.env.example stays tracked)
+# Local configuration and secrets. Only .env.example is tracked, and it holds
+# nothing but commented-out placeholders: every real value of an instance
+# (addresses, mail credentials, colours, logo path) stays on that instance.
 .env
 .env.*
 !.env.example
+*.env
+env.sh
+# Compose overrides and any second compose file are per-host deployment config.
 docker-compose.override.yml
+docker-compose.*.yml
+!docker-compose.yml
 *.pem
 *.key
 *.crt
+*.p12
+*.pfx
 
-# Instance-specific branding assets (logo etc.), mounted at runtime
+# Instance-specific branding assets (logo etc.), mounted at runtime. Never
+# commit a client's logo or colours: the container reads them from a mount.
 branding/
+branding/**
+**/branding/
+# A logo dropped at the repo root is the usual accident. Anchored on purpose:
+# an unanchored rule would also silently swallow a future asset in public/.
+/logo.png
+/logo.svg
+/logo.jpg
+/logo.jpeg
+/logo.webp
 
 # Local tooling, editors, OS files
 .claude/
