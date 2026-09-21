@@ -478,6 +478,17 @@ Dependabot keeps npm/actions/docker up to date.
 
 ---
 
+## Contributing and reporting
+
+- [CONTRIBUTING.md](CONTRIBUTING.md) — how to run it, what the gate is, and the list of
+  things that look like bugs and are not.
+- [SECURITY.md](SECURITY.md) — **do not report vulnerabilities in a public issue**; use
+  [private reporting](https://github.com/pan-dolina/outletbox/security/advisories/new).
+  What is in scope and what is not is spelled out there.
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) — short, and enforced.
+
+---
+
 ## License
 
 Apache License 2.0, see [LICENSE](LICENSE).

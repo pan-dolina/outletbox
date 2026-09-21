@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/pan-dolina/outletbox/security/advisories/new
+    about: Never in a public issue. This opens a private report visible only to the maintainers.
+  - name: Configuration and deployment
+    url: https://github.com/pan-dolina/outletbox#4-configuration
+    about: Mail drivers, reverse proxies, storage backends and every variable are documented in the README.

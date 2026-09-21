@@ -1,0 +1,43 @@
+name: Feature request
+description: Suggest a change in behaviour
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is deliberately not a network drive and not a sharing tool: no public links,
+        no previews, no self-registration, and no "just send me the file without the
+        code". Proposals that turn it into one will be declined, however well implemented.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do, and what stops you today? Not the solution yet.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like instead
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you already tried or rejected
+      description: Existing configuration, a shorter expiry, a lower opening cap, a second case, the CLI — and why it was not enough.
+
+  - type: checkboxes
+    id: model
+    attributes:
+      label: Security model
+      options:
+        - label: A recipient still needs the address the link was issued for and a code sent to it
+          required: true
+        - label: This does not weaken case isolation, the opening cap, CSRF or the admin second factor
+          required: true
+        - label: This does not put a token, a code or a recipient address anywhere new (a log, a page, a URL query)
+          required: true
