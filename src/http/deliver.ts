@@ -154,7 +154,8 @@ export function deliverRouter(ctx: AppContext): Router {
     // The message is written in the recipient's language, which is a property of
     // the link, not of the browser that happens to be asking for the code.
     ctx.mailer.send(accessCodeMail({
-      lang: resolved.link.lang, to: resolved.link.recipient_email, brand: ctx.cfg.brand.name,
+      lang: resolved.link.lang, to: resolved.link.recipient_email,
+      brand: ctx.cfg.brand, publicUrl: ctx.cfg.publicUrl,
       caseName: resolved.case.name, code: created.code, ttlMinutes: minutes,
     })).then(() => {
       audit(ctx.db, { actorType: 'recipient', action: 'access.code_sent', caseId: resolved.case.id, linkId: resolved.link.id, ip: req.ip });

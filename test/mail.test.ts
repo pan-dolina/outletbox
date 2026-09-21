@@ -78,9 +78,12 @@ async function fakeHttp(handler: (req: http.IncomingMessage, body: string, res: 
   return { port: (server.address() as net.AddressInfo).port, hits };
 }
 
+const BRAND = { name: 'Acme', logoPath: null, colorPrimary: '#1f6feb', colorTopbar: '#101418', colorAccent: '#1f6feb', footerText: '' };
+const BRANDED = { ...BRAND, logoPath: '/srv/branding/logo.png', colorTopbar: '#1f1b3d', colorAccent: '#0f766e', footerText: 'Acme · secure delivery' };
+
 describe('templates', () => {
   it('puts the code in the subject and never the link', () => {
-    const mail = accessCodeMail({ lang: 'en', to: 'a@example.com', brand: 'Acme', caseName: 'Report', code: '123456', ttlMinutes: 15 });
+    const mail = accessCodeMail({ lang: 'en', to: 'a@example.com', brand: BRAND, caseName: 'Report', code: '123456', ttlMinutes: 15 });
     expect(mail.subject).toBe('Access code: 123456');
     expect(mail.text).toContain('123456');
     expect(mail.text).toContain('15 minutes');
@@ -89,20 +92,42 @@ describe('templates', () => {
   });
 
   it('translates to Polish', () => {
-    const mail = accessCodeMail({ lang: 'pl', to: 'a@example.com', brand: 'Acme', caseName: 'Raport', code: '123456', ttlMinutes: 10 });
+    const mail = accessCodeMail({ lang: 'pl', to: 'a@example.com', brand: BRAND, caseName: 'Raport', code: '123456', ttlMinutes: 10 });
     expect(mail.subject).toBe('Kod dostępu: 123456');
     expect(mail.text).toContain('jednorazowy kod: 123456');
   });
 
   it('refuses a subject with a header injection attempt', () => {
-    expect(() => accessCodeMail({ lang: 'en', to: 'a@example.com', brand: 'Acme', caseName: 'x', code: '1\r\nBcc: victim@example.com', ttlMinutes: 15 }))
+    expect(() => accessCodeMail({ lang: 'en', to: 'a@example.com', brand: BRAND, caseName: 'x', code: '1\r\nBcc: victim@example.com', ttlMinutes: 15 }))
       .toThrow(MailError);
   });
 
   it('escapes a hostile case name in the HTML part', () => {
-    const mail = accessCodeMail({ lang: 'en', to: 'a@example.com', brand: 'Acme', caseName: '<script>alert(1)</script>', code: '123456', ttlMinutes: 15 });
+    const mail = accessCodeMail({ lang: 'en', to: 'a@example.com', brand: BRAND, caseName: '<script>alert(1)</script>', code: '123456', ttlMinutes: 15 });
     expect(mail.html).not.toContain('<script>');
     expect(mail.html).toContain('&lt;script&gt;');
+  });
+
+  it('wears the instance branding: logo, colours and footer line', () => {
+    const mail = accessCodeMail({ lang: 'en', to: 'a@example.com', brand: BRANDED, publicUrl: 'https://box.example.com/', caseName: 'Report', code: '123456', ttlMinutes: 15 });
+    // An absolute URL, because a mailbox has no base to resolve against, and no
+    // double slash from a PUBLIC_URL that ends in one.
+    expect(mail.html).toContain('src="https://box.example.com/brand/logo"');
+    expect(mail.html).toContain('#1f1b3d');
+    expect(mail.html).toContain('#0f766e');
+    expect(mail.html).toContain('Acme · secure delivery');
+    expect(mail.text).toContain('Acme · secure delivery');
+  });
+
+  it('falls back to the name when no logo is configured', () => {
+    const mail = accessCodeMail({ lang: 'en', to: 'a@example.com', brand: BRAND, publicUrl: 'https://box.example.com', caseName: 'Report', code: '123456', ttlMinutes: 15 });
+    expect(mail.html).not.toContain('<img');
+    expect(mail.html).toContain('Acme');
+  });
+
+  it('leaves the logo out when the instance URL is unknown', () => {
+    const mail = accessCodeMail({ lang: 'en', to: 'a@example.com', brand: BRANDED, caseName: 'Report', code: '123456', ttlMinutes: 15 });
+    expect(mail.html).not.toContain('<img');
   });
 
   it('is the only message the application can send', () => {

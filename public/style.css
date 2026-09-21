@@ -251,4 +251,6 @@ label.check input { width: auto; }
 .otp-boxes > .otp-box:nth-child(3) { margin-right: .7rem; }
 .note { border: 1px solid var(--border); border-radius: 6px; padding: .8rem 1rem; margin-bottom: .8rem; }
 .note h3 { margin: 0 0 .4rem; font-size: 1rem; }
-.note-body { margin: 0; white-space: pre-wrap; word-break: break-word; font: inherit; background: none; border: none; padding: 0; }
+/* Notes carry passwords, keys and paths, so they are shown in a monospace face:
+   0 and O, l and 1 have to be distinguishable when somebody retypes them. */
+.note-body { margin: 0; white-space: pre-wrap; word-break: break-word; font-family: var(--mono); font-size: .95rem; line-height: 1.5; background: none; border: none; padding: 0; }

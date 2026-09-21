@@ -168,7 +168,7 @@ export function casePage(v: AdminViewContext, d: CasePageData): string {
         <table>
           <thead><tr><th>${t('items.col.item')}</th><th>${t('items.col.kind')}</th><th>${t('items.col.size')}</th><th>${t('items.col.status')}</th><th>${t('items.col.added')}</th><th>SHA-256</th><th></th></tr></thead>
           <tbody>${d.items.map((i) => html`<tr>
-            <td class="filename">${i.title}${i.kind === 'note' && i.body ? html`<br><span class="muted small">${i.body.slice(0, 120)}${i.body.length > 120 ? '…' : ''}</span>` : ''}</td>
+            <td class="filename">${i.title}${i.kind === 'note' && i.body ? html`<br><span class="muted small mono">${i.body.slice(0, 120)}${i.body.length > 120 ? '…' : ''}</span>` : ''}</td>
             <td>${t(i.kind === 'note' ? 'items.kind.note' : 'items.kind.file')}</td>
             <td>${i.size != null ? formatSize(i.size) : i.declared_size != null ? html`<span class="muted">${t('items.declared', { size: formatSize(i.declared_size) })}</span>` : '—'}</td>
             <td><span class="badge badge-${i.status}">${itemStatus(t, i.status)}</span></td>

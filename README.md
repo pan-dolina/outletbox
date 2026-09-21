@@ -18,6 +18,8 @@ drive and not a sharing tool: no public links, no previews, no self-registration
 - **Admin 2FA:** TOTP (RFC 6238) with recovery codes, optionally enforced for every admin.
 - **UI languages:** English and Polish, for the panel, the recipient pages and the e-mails.
   Each recipient is addressed in the language chosen when they were added.
+- **Branding:** name, logo and colours apply to the panel, the recipient pages *and* the
+  code e-mail, so the message and the page asking for the code look like one thing.
 - **Light and dark theme:** follows `prefers-color-scheme`. No toggle, no script, no cookie.
 
 ---
@@ -210,7 +212,9 @@ message: the one-time code. **The delivery link is never mailed by the applicati
 administrator copies it from the panel and passes it to the recipient the way they
 normally reach them. A message that leaks therefore carries a code that is useless without
 the link, and a link that leaks is useless without the mailbox. The message is written in
-the language the link was issued in, not in the language of whoever asked for the code.
+the language the link was issued in, not in the language of whoever asked for the code,
+and it carries the instance branding: the logo is referenced from `PUBLIC_URL/brand/logo`,
+so a recipient whose client blocks remote images sees the brand name in its place.
 
 | Driver | Use it for | Required settings |
 |---|---|---|
