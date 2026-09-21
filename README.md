@@ -94,8 +94,9 @@ node dist/cli.js migrate
   upload files / write notes
   add a recipient (label + e-mail + limits)
   → link https://…/d/<token>                   opens the link
-    (handed over in person, by the panel's
-     "e-mail the link", or any other channel)
+    (handed over by the administrator: in
+     person, by chat, by their own e-mail —
+     the application never sends it)
                                                types their e-mail address
                                                ── must equal the one in the case ──
                                                receives a 6-digit code by e-mail
@@ -194,12 +195,15 @@ are legible on a light *and* a dark card.
 
 ## 5. Sending mail
 
-One interface, four drivers ([`src/mail/`](src/mail/)). Every driver sends the same two
-messages: the one-time code, and (optionally) the delivery link itself.
+One interface, four drivers ([`src/mail/`](src/mail/)). Every driver sends the same single
+message: the one-time code. **The delivery link is never mailed by the application** — an
+administrator copies it from the panel and passes it to the recipient the way they
+normally reach them. A message that leaks therefore carries a code that is useless without
+the link, and a link that leaks is useless without the mailbox.
 
 | Driver | Use it for | Required settings |
 |---|---|---|
-| `log` (default) | development and dry runs — **nothing is sent**; messages land in `DATA_DIR/mail/` and in memory | none |
+| `log` (default) | development and dry runs — **nothing is sent**; codes land in `DATA_DIR/mail/` and in memory | none |
 | `smtp` | any relay or submission service | `SMTP_HOST`, usually `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` |
 | `graph` | Microsoft 365 with app-only OAuth (the supported path now that SMTP AUTH is being retired) | `GRAPH_TENANT_ID`, `GRAPH_CLIENT_ID`, `GRAPH_CLIENT_SECRET`, `GRAPH_SENDER` |
 | `ses` | Amazon SES v2 | `SES_REGION`; keys optional (instance role / IRSA otherwise) |
@@ -351,7 +355,8 @@ uploads) but keeps `headersTimeout` at 60 s and a 5-minute socket idle timeout (
   remembered, so a code cannot be replayed.
 - **Link tokens:** 256 bits from a CSPRNG, stored only as SHA-256 (+ a 6-character hint for
   the panel). The full link is shown once, in the response that created it, and can only be
-  replaced — "send it again" issues a new token and kills the old one.
+  replaced — "issue a new link" rotates the token and kills the old one, along with any
+  session opened with it.
 - **CSRF:** SameSite=Lax + `Origin`/`Sec-Fetch-Site` checks + a per-session synchroniser
   token in every admin form (`X-CSRF-Token` for uploads) and a double-submit flow cookie on
   the recipient forms, which also stops a third party from triggering code e-mails.
@@ -419,7 +424,7 @@ Tables ([`migrations/001_init.sql`](migrations/001_init.sql)):
   status uploading|ready|aborted|expired|missing|deleted, declared_size, size, sha256,
   created_by, timestamps)
 - `links` (id, case_id, label, recipient_email, token_hash, token_hint, expires_at,
-  revoked_at, max_opens, opens_used, last_used_at, link_sent_at)
+  revoked_at, max_opens, opens_used, last_used_at)
 - `challenges` (id, link_id, code_hash, flow_hash, attempts, expires_at, consumed_at, ip)
 - `access_sessions` (id_hash, link_id, csrf_token, expires_at, ip)
 - `audit_log` (ts, actor_type admin|recipient|system, actor_id, action, case_id, link_id,

@@ -7,7 +7,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { loadConfig } from '../src/config.js';
 import { createMailer, formatFrom, MailError } from '../src/mail/index.js';
 import { LogMailer } from '../src/mail/log.js';
-import { accessCodeMail, deliveryLinkMail } from '../src/mail/templates.js';
+import { accessCodeMail } from '../src/mail/templates.js';
+import * as templates from '../src/mail/templates.js';
 import { setLogLevel } from '../src/log.js';
 
 setLogLevel('error');
@@ -93,24 +94,21 @@ describe('templates', () => {
     expect(mail.text).toContain('jednorazowy kod: 123456');
   });
 
-  it('mentions the expiry date when the link has one', () => {
-    const mail = deliveryLinkMail({ lang: 'en', to: 'a@example.com', brand: 'Acme', caseName: 'Report', url: 'https://x.test/d/abc', expiresAt: '2026-10-01T12:00:00.000Z' });
-    expect(mail.text).toContain('2026-10-01 12:00');
-    expect(mail.html).toContain('2026-10-01 12:00');
-    const without = deliveryLinkMail({ lang: 'en', to: 'a@example.com', brand: 'Acme', caseName: 'Report', url: 'https://x.test/d/abc' });
-    expect(without.text).not.toContain('valid until');
+  it('refuses a subject with a header injection attempt', () => {
+    expect(() => accessCodeMail({ lang: 'en', to: 'a@example.com', brand: 'Acme', caseName: 'x', code: '1\r\nBcc: victim@example.com', ttlMinutes: 15 }))
+      .toThrow(MailError);
   });
 
-  it('escapes hostile case names in the HTML part', () => {
-    const mail = deliveryLinkMail({ lang: 'en', to: 'a@example.com', brand: 'Acme', caseName: '<script>alert(1)</script>', url: 'https://x.test/d/abc' });
+  it('escapes a hostile case name in the HTML part', () => {
+    const mail = accessCodeMail({ lang: 'en', to: 'a@example.com', brand: 'Acme', caseName: '<script>alert(1)</script>', code: '123456', ttlMinutes: 15 });
     expect(mail.html).not.toContain('<script>');
     expect(mail.html).toContain('&lt;script&gt;');
-    expect(mail.text).toContain('https://x.test/d/abc');
   });
 
-  it('refuses a subject with a header injection attempt', () => {
-    expect(() => deliveryLinkMail({ lang: 'en', to: 'a@example.com', brand: 'Acme', caseName: 'x\r\nBcc: victim@example.com', url: 'https://x.test/d/abc' }))
-      .toThrow(MailError);
+  it('is the only message the application can send', () => {
+    // The delivery link is handed over by an administrator, never mailed, so
+    // there is no second template to keep in step.
+    expect(Object.keys(templates).filter((k) => k.endsWith('Mail'))).toEqual(['accessCodeMail']);
   });
 
   it('quotes a display name that needs it', () => {

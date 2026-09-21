@@ -78,7 +78,10 @@ The README has the full architecture; these are the ones people try to "fix" fir
 - **An exhausted link still serves a session that is already open.** Being allowed in and
   then losing the files mid-download would be absurd. Revocation and closing the case do
   the opposite on purpose: they end live sessions at once.
-- **"Send the link again" issues a new token.** The clear-text token exists only in the
+- **The application mails the code and nothing else.** The delivery link is handed over
+  by the administrator, deliberately on a different channel, so the two factors do not
+  travel together. A "send the link by e-mail" button will be declined.
+- **"Issue a new link" rotates the token.** The clear-text token exists only in the
   response that created it — the database has a hash — so there is nothing to re-send.
 - **`Origin: null` is accepted on admin POSTs.** `Referrer-Policy: no-referrer` makes
   Chrome send it on same-origin form posts. Sec-Fetch-Site and the CSRF token are the real

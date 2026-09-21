@@ -8,7 +8,7 @@ export interface Link {
   id: string; case_id: string; label: string; recipient_email: string; token_hash: string; token_hint: string;
   expires_at: string | null; revoked_at: string | null;
   max_opens: number | null; opens_used: number;
-  created_at: string; last_used_at: string | null; link_sent_at: string | null;
+  created_at: string; last_used_at: string | null;
 }
 
 export type LinkState = 'active' | 'expired' | 'revoked' | 'case_closed' | 'exhausted';
@@ -37,13 +37,13 @@ export function createLink(db: Db, cfg: Config, input: CreateLinkInput): { link:
     token_hash: sha256Hex(token), token_hint: token.slice(0, 6),
     expires_at: input.expiresAt ? input.expiresAt.toISOString() : null, revoked_at: null,
     max_opens: input.maxOpens ?? null, opens_used: 0,
-    created_at: now(), last_used_at: null, link_sent_at: null,
+    created_at: now(), last_used_at: null,
   };
   db.prepare(
-    `INSERT INTO links (id, case_id, label, recipient_email, token_hash, token_hint, expires_at, revoked_at, max_opens, opens_used, created_at, last_used_at, link_sent_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO links (id, case_id, label, recipient_email, token_hash, token_hint, expires_at, revoked_at, max_opens, opens_used, created_at, last_used_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(link.id, link.case_id, link.label, link.recipient_email, link.token_hash, link.token_hint, link.expires_at, link.revoked_at,
-    link.max_opens, link.opens_used, link.created_at, link.last_used_at, link.link_sent_at);
+    link.max_opens, link.opens_used, link.created_at, link.last_used_at);
   // The clear-text token exists only in this return value; the database keeps its SHA-256.
   return { link, token, url: linkUrl(cfg, token) };
 }
@@ -100,9 +100,10 @@ export function registerOpen(db: Db, id: string): boolean {
 }
 
 /**
- * Issues a fresh token for an existing link. The clear-text token is shown (or
- * mailed) exactly once at creation, so "send the link again" can only mean
- * "send a new one" — the old URL stops working the moment this returns.
+ * Issues a fresh token for an existing link, keeping the recipient, the limits
+ * and the opening count. The clear-text token is shown exactly once, so
+ * "I need the link again" can only mean "issue a new one" — the old URL stops
+ * working the moment this returns.
  */
 export function rotateLinkToken(db: Db, cfg: Config, id: string): { token: string; url: string } | null {
   const link = getLink(db, id);
@@ -110,10 +111,6 @@ export function rotateLinkToken(db: Db, cfg: Config, id: string): { token: strin
   const token = newToken();
   db.prepare('UPDATE links SET token_hash = ?, token_hint = ? WHERE id = ?').run(sha256Hex(token), token.slice(0, 6), id);
   return { token, url: linkUrl(cfg, token) };
-}
-
-export function markLinkSent(db: Db, id: string): void {
-  db.prepare('UPDATE links SET link_sent_at = ? WHERE id = ?').run(now(), id);
 }
 
 /** True when the address the recipient typed is the one this link was issued for. */

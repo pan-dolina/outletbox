@@ -4,7 +4,6 @@ import QRCode from 'qrcode';
 import { pipeline } from 'node:stream/promises';
 import { ID_RE } from '../crypto.js';
 import { log } from '../log.js';
-import { deliveryLinkMail } from '../mail/templates.js';
 import { audit, listAudit } from '../services/audit.js';
 import {
   authenticate, beginTotpEnrolment, changeAdminPassword, confirmTotpEnrolment, createSession, destroyOtherSessions, destroySession,
@@ -16,7 +15,7 @@ import { discardUploadData } from '../services/cleanup.js';
 import {
   completeUpload, createNote, failUpload, getItem, listItemsForCase, LimitError, markDeleted, sanitizeFilename, startUpload,
 } from '../services/items.js';
-import { createLink, getLink, listLinksForCase, markLinkSent, revokeLink, rotateLinkToken } from '../services/links.js';
+import { createLink, getLink, listLinksForCase, revokeLink, rotateLinkToken } from '../services/links.js';
 import { StorageLimitError, StorageNotFoundError } from '../storage/index.js';
 import { otpauthUri } from '../totp.js';
 import { t, type MessageKey } from '../i18n.js';
@@ -365,7 +364,7 @@ export function adminRouter(ctx: AppContext): Router {
   });
 
   // ---- links -------------------------------------------------------------
-  r.post('/cases/:id/links', (req, res, next) => {
+  r.post('/cases/:id/links', (req, res) => {
     const id = validId(req.params.id);
     if (!id) return renderCase(req, res, '');
     const c = getCase(ctx.db, id);
@@ -390,26 +389,18 @@ export function adminRouter(ctx: AppContext): Router {
     }
     const { link, url } = created;
     audit(ctx.db, { actorType: 'admin', actorId: req.session!.admin.id, action: 'link.create', caseId: id, linkId: link.id, ip: req.ip, details: { label: link.label, email: link.recipient_email, expires_at: link.expires_at, max_opens: link.max_opens } });
-    // The full URL is shown exactly once, in this response. It is not stored anywhere.
-    if (field(req, 'send_email') !== '1') {
-      renderCase(req, res, id, { newLink: { label: link.label, url } });
-      return;
-    }
-    sendLinkMail(req, link.recipient_email, c.name, url, link.expires_at)
-      .then(() => {
-        markLinkSent(ctx.db, link.id);
-        audit(ctx.db, { actorType: 'admin', actorId: req.session!.admin.id, action: 'link.sent', caseId: id, linkId: link.id, ip: req.ip });
-        renderCase(req, res, id, { newLink: { label: link.label, url }, ok: t(req.lang, 'links.sent', { email: link.recipient_email }) });
-      })
-      .catch((err: unknown) => {
-        log.warn('link mail failed', { linkId: link.id, err: err as Error });
-        renderCase(req, res, id, { newLink: { label: link.label, url }, error: t(req.lang, 'links.send_failed', { msg: (err as Error).message }) });
-      })
-      .catch(next);
+    // The full URL is shown exactly once, in this response, and is not stored
+    // anywhere. The application never mails it: handing the link over is the
+    // administrator's job, and only the one-time code goes out by e-mail.
+    renderCase(req, res, id, { newLink: { label: link.label, url } });
   });
 
-  /** "Send it again" can only mean "send a new one": the old token exists nowhere but in the recipient's inbox. */
-  r.post('/links/:id/resend', (req, res, next) => {
+  /**
+   * "I need the link again" can only mean "issue a new one": the clear-text
+   * token was shown once and the database keeps nothing but its hash. The
+   * recipient, the limits and the opening count survive; the old URL does not.
+   */
+  r.post('/links/:id/reissue', (req, res) => {
     const id = validId(req.params.id);
     const link = id ? getLink(ctx.db, id) : null;
     if (!link) return sendError(req, res, 'error.not_found.title', 'error.link_missing');
@@ -419,22 +410,9 @@ export function adminRouter(ctx: AppContext): Router {
     if (!rotated) return sendError(req, res, 'error.not_found.title', 'error.link_missing');
     // The previous URL is dead from now on, so any session opened with it goes too.
     destroyAccessSessionsForLink(ctx.db, link.id);
-    sendLinkMail(req, link.recipient_email, c.name, rotated.url, link.expires_at)
-      .then(() => {
-        markLinkSent(ctx.db, link.id);
-        audit(ctx.db, { actorType: 'admin', actorId: req.session!.admin.id, action: 'link.rotated_and_sent', caseId: c.id, linkId: link.id, ip: req.ip });
-        renderCase(req, res, c.id, { newLink: { label: link.label, url: rotated.url }, ok: t(req.lang, 'links.sent', { email: link.recipient_email }) });
-      })
-      .catch((err: unknown) => {
-        log.warn('link mail failed', { linkId: link.id, err: err as Error });
-        renderCase(req, res, c.id, { newLink: { label: link.label, url: rotated.url }, error: t(req.lang, 'links.send_failed', { msg: (err as Error).message }) });
-      })
-      .catch(next);
+    audit(ctx.db, { actorType: 'admin', actorId: req.session!.admin.id, action: 'link.reissue', caseId: c.id, linkId: link.id, ip: req.ip });
+    renderCase(req, res, c.id, { newLink: { label: link.label, url: rotated.url } });
   });
-
-  async function sendLinkMail(req: Request, to: string, caseName: string, url: string, expiresAt: string | null): Promise<void> {
-    await ctx.mailer.send(deliveryLinkMail({ lang: req.lang, to, brand: ctx.cfg.brand.name, caseName, url, expiresAt }));
-  }
 
   r.post('/links/:id/revoke', (req, res) => {
     const id = validId(req.params.id);

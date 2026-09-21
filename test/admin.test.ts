@@ -111,17 +111,15 @@ describe('recipient links', () => {
     expect(later).toContain(RECIPIENT);
   });
 
-  it('mails the link when asked to', async () => {
-    const id = await newCase('Delivery with mail');
+  it('never mails the link, whatever the form is asked to do', async () => {
+    const id = await newCase('Delivery without mail');
     const before = app.mailer.recent().length;
+    // send_email is a leftover an old client might still post; it must do nothing.
     const res = await adminPost(app, session, `/admin/cases/${id}/links`, { label: 'Jan', email: RECIPIENT, send_email: '1' });
     const body = await res.text();
-    expect(body).toContain(`The link was sent to ${RECIPIENT}`);
-    const mail = app.mailer.recent()[0]!;
-    expect(app.mailer.recent().length).toBe(before + 1);
-    expect(mail.to).toBe(RECIPIENT);
-    expect(mail.subject).toContain('Delivery with mail');
-    expect(mail.text).toContain('/d/');
+    expect(body).toContain('/d/');
+    expect(app.mailer.recent().length).toBe(before);
+    expect(body).toContain('never sends the link itself');
   });
 
   it('rejects a link without a usable address', async () => {
@@ -131,18 +129,18 @@ describe('recipient links', () => {
     expect(await res.text()).toContain('valid recipient e-mail address');
   });
 
-  it('resending issues a new token and kills the old link', async () => {
+  it('reissuing a link rotates the token, ends the session and sends nothing', async () => {
     const id = await newCase();
-    const c = { id };
-    const link = app.mkLink(c.id);
+    const link = app.mkLink(id);
     const visitor = await unlock(app, link.url);
     expect(visitor.lastBody).toContain('Your delivery');
 
-    const res = await adminPost(app, session, `/admin/links/${link.id}/resend`);
+    const before = app.mailer.recent().length;
+    const res = await adminPost(app, session, `/admin/links/${link.id}/reissue`);
     const body = await res.text();
     const fresh = /value="(http:[^"]+\/d\/[^"]+)"/.exec(body)![1]!;
     expect(fresh).not.toBe(link.url);
-    expect(body).toContain('was sent to');
+    expect(app.mailer.recent().length).toBe(before);
 
     // The old URL is dead, and the session opened with it is gone too.
     const old = await new Visitor(app.base).getPage(pathOf(link.url));

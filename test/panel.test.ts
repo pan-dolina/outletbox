@@ -156,22 +156,23 @@ describe('case editing', () => {
   });
 });
 
-describe('mail failures in the panel', () => {
-  it('still shows the link when the message could not be sent', async () => {
-    vi.spyOn(app.ctx.mailer, 'send').mockRejectedValue(new Error('relay refused'));
+describe('the panel never mails a link', () => {
+  it('creating a recipient sends nothing at all', async () => {
+    const send = vi.spyOn(app.ctx.mailer, 'send');
     const c = app.mkCase();
-    const res = await adminPost(app, session, `/admin/cases/${c.id}/links`, { label: 'Jan', email: RECIPIENT, send_email: '1' });
-    const body = await res.text();
-    expect(body).toContain('could not be sent');
-    expect(body).toContain('/d/');
+    const res = await adminPost(app, session, `/admin/cases/${c.id}/links`, { label: 'Jan', email: RECIPIENT });
+    expect(res.status).toBe(200);
+    expect(await res.text()).toContain('/d/');
+    expect(send).not.toHaveBeenCalled();
   });
 
-  it('reports a failure when resending', async () => {
+  it('reissuing sends nothing either, and a broken mailer cannot break it', async () => {
     const c = app.mkCase();
     const link = app.mkLink(c.id);
     vi.spyOn(app.ctx.mailer, 'send').mockRejectedValue(new Error('relay refused'));
-    const res = await adminPost(app, session, `/admin/links/${link.id}/resend`);
-    expect(await res.text()).toContain('could not be sent');
+    const res = await adminPost(app, session, `/admin/links/${link.id}/reissue`);
+    expect(res.status).toBe(200);
+    expect(await res.text()).toContain('/d/');
   });
 });
 

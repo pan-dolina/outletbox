@@ -186,6 +186,7 @@ export function casePage(v: AdminViewContext, d: CasePageData): string {
       <section class="card">
         <h2>${t('links.title')}</h2>
         <p class="muted small">${t('links.intro')}</p>
+        <p class="muted small">${t('links.handover')}</p>
         <p class="muted small">${t('links.mail_driver', { driver: d.cfg.mail.driver })}</p>
         <details ${c.status === 'open' ? 'open' : ''}>
           <summary>${t('links.generate')}</summary>
@@ -194,7 +195,6 @@ export function casePage(v: AdminViewContext, d: CasePageData): string {
             <label>${t('links.email')} <input name="email" type="email" required maxlength="254" placeholder="jan.kowalski@example.com"></label>
             <label>${t('links.expires')} <input name="expires_at" type="datetime-local"></label>
             <label>${t('links.max_opens')} <input name="max_opens" type="number" min="1" step="1" placeholder="3"></label>
-            <label class="check"><input type="checkbox" name="send_email" value="1" checked> ${t('links.send_now')}</label>
             <div class="grid-full muted small">${t('links.max_opens_hint')}</div>
             <div><button class="btn btn-primary" type="submit" ${c.status !== 'open' ? 'disabled' : ''}>${t('links.submit')}</button></div>
           </form>
@@ -205,15 +205,14 @@ export function casePage(v: AdminViewContext, d: CasePageData): string {
           <tbody>${d.links.map((l) => {
             const state = linkState(l, c);
             return html`<tr>
-              <td>${l.label}<br><span class="muted small">${l.recipient_email}</span><br><span class="muted small mono">${l.token_hint}…</span>
-                ${l.link_sent_at ? html`<br><span class="muted small">${t('links.sent_at', { date: fmtDate(l.link_sent_at, v.lang) })}</span>` : ''}</td>
+              <td>${l.label}<br><span class="muted small">${l.recipient_email}</span><br><span class="muted small mono">${l.token_hint}…</span></td>
               <td><span class="badge badge-${state}">${t(`links.state.${state}`)}</span></td>
               <td>${l.expires_at ? fmtDate(l.expires_at, v.lang) : t('common.no_expiry')}</td>
               <td>${l.max_opens != null ? t('links.opens', { used: l.opens_used, max: l.max_opens }) : t('links.opens_unlimited', { used: l.opens_used })}</td>
               <td>${fmtDate(l.last_used_at, v.lang)}</td>
               <td class="nowrap">
                 ${l.revoked_at ? '' : html`
-                  <form method="post" action="/admin/links/${l.id}/resend" class="inline" data-confirm="${t('links.resend_confirm', { email: l.recipient_email })}">${csrf}<button class="btn" type="submit">${t('links.resend')}</button></form>
+                  <form method="post" action="/admin/links/${l.id}/reissue" class="inline" data-confirm="${t('links.reissue_confirm', { label: l.label })}">${csrf}<button class="btn" type="submit">${t('links.reissue')}</button></form>
                   <form method="post" action="/admin/links/${l.id}/revoke" class="inline" data-confirm="${t('links.revoke_confirm', { label: l.label })}">${csrf}<button class="btn btn-danger" type="submit">${t('links.revoke')}</button></form>`}
               </td>
             </tr>`;

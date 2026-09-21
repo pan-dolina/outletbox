@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { boot, pathOf, type TestApp } from './helpers.js';
+import { boot, pathOf, Visitor, type TestApp } from './helpers.js';
 
 const PNG = Buffer.from('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a49444154789c6360000002000100ffff03000006000557bfabd40000000049454e44ae426082', 'hex');
 
@@ -44,16 +44,16 @@ describe('branding', () => {
     expect(res.headers.get('x-content-type-options')).toBe('nosniff');
   });
 
-  it('brands the e-mails too', async () => {
-    const session = await app.adminLogin();
+  it('brands the one-time code e-mail too', async () => {
     const c = app.mkCase('Branded delivery');
-    const res = await fetch(`${app.base}/admin/cases/${c.id}/links`, {
-      method: 'POST', redirect: 'manual',
-      headers: { cookie: session.cookie, 'content-type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ _csrf: session.csrf, label: 'Jan', email: 'jan@example.com', send_email: '1' }),
-    });
-    expect(res.status).toBe(200);
-    expect(app.mailer.recent()[0]!.text).toContain('Acme Secure');
+    const link = app.mkLink(c.id, { recipientEmail: 'jan@example.com' });
+    const v = new Visitor(app.base);
+    const p = pathOf(link.url);
+    await v.getPage(p);
+    await v.post(`${p}/email`, { email: 'jan@example.com' });
+    const mail = app.mailer.recent()[0]!;
+    expect(mail.text).toContain('Acme Secure');
+    expect(mail.subject).toMatch(/\d{6}/);
   });
 
   it('serves an SVG logo under a script-less policy', async () => {
