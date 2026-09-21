@@ -1,6 +1,6 @@
 import type { Brand } from '../config.js';
 import { t, type Lang } from '../i18n.js';
-import { assertSafeHeader, type OutgoingMail } from './types.js';
+import { assertSafeHeader, type InlineImage, type OutgoingMail } from './types.js';
 
 /** Local, dependency-free escaping: these bodies never contain markup we did not write. */
 function esc(value: string): string {
@@ -17,11 +17,11 @@ function esc(value: string): string {
  * come from the configuration, where they are validated as hex, and everything
  * else is escaped.
  */
-function htmlDocument(brand: Brand, logoUrl: string | null, paragraphs: string[]): string {
-  const header = logoUrl
+function htmlDocument(brand: Brand, logoSrc: string | null, paragraphs: string[]): string {
+  const header = logoSrc
     // The image is likely to be blocked, so the alt text has to work on its own:
     // white, because it sits on the dark band where the logo would be.
-    ? `<img src="${esc(logoUrl)}" alt="${esc(brand.name)}" height="28" style="height:28px;max-width:220px;display:block;border:0;color:#ffffff;font-weight:600;font-size:16px">`
+    ? `<img src="${esc(logoSrc)}" alt="${esc(brand.name)}" height="28" style="height:28px;max-width:220px;display:block;border:0;color:#ffffff;font-weight:600;font-size:16px">`
     : `<span style="color:#ffffff;font-weight:600;font-size:16px">${esc(brand.name)}</span>`;
   return [
     // The charset belongs in the document as well as in the MIME headers: a
@@ -41,8 +41,14 @@ export interface CodeMailInput {
   lang: Lang;
   to: string;
   brand: Brand;
-  /** Base URL of this instance; the logo is served from it. */
+  /** Base URL of this instance; the logo is linked from it when it cannot travel along. */
   publicUrl?: string;
+  /**
+   * The logo to carry inside the message. Drivers that cannot attach anything
+   * (SES) get null, and the message links the logo from `publicUrl` instead —
+   * which then needs the reader to allow remote images.
+   */
+  inlineLogo?: InlineImage | null;
   caseName: string;
   code: string;
   ttlMinutes: number;
@@ -71,9 +77,13 @@ export function accessCodeMail(input: CodeMailInput): OutgoingMail {
     tr('mail.code.footer', { brand: brandName }),
   ];
   if (input.brand.footerText) lines.push(input.brand.footerText);
-  // Only an absolute URL is any use in a mailbox, and only when a logo exists.
-  const logoUrl = input.brand.logoPath && input.publicUrl ? `${input.publicUrl.replace(/\/+$/, '')}/brand/logo` : null;
-  const html = htmlDocument(input.brand, logoUrl, [
+  // Attached beats linked: it needs no permission from the reader and tells us
+  // nothing about when the message was opened. Only an absolute URL is any use
+  // as the fallback, since a mailbox has no base to resolve against.
+  const logoSrc = input.inlineLogo
+    ? `cid:${input.inlineLogo.contentId}`
+    : input.brand.logoPath && input.publicUrl ? `${input.publicUrl.replace(/\/+$/, '')}/brand/logo` : null;
+  const html = htmlDocument(input.brand, logoSrc, [
     `<p style="margin:0 0 12px">${esc(tr('mail.code.greeting'))}</p>`,
     `<p style="margin:0 0 16px">${esc(tr('mail.code.intro', { case: input.caseName, brand: brandName }))}</p>`,
     `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 16px"><tr>`,
@@ -86,5 +96,8 @@ export function accessCodeMail(input: CodeMailInput): OutgoingMail {
     // The instance's own footer line, when it has one, exactly as the pages show it.
     input.brand.footerText ? `<p style="margin:4px 0 0;color:#8a919c;font-size:12px">${esc(input.brand.footerText)}</p>` : '',
   ]);
-  return { to: input.to, subject, text: lines.join('\n'), html };
+  return {
+    to: input.to, subject, text: lines.join('\n'), html,
+    ...(input.inlineLogo ? { inlineImages: [input.inlineLogo] } : {}),
+  };
 }

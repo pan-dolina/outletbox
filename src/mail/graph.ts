@@ -17,6 +17,7 @@ const REQUEST_TIMEOUT_MS = 20_000;
  */
 export class GraphMailer implements Mailer {
   readonly kind = 'graph' as const;
+  readonly inlineImages = true;
   private token: { value: string; expiresAt: number } | null = null;
 
   constructor(private readonly cfg: MailConfig) {}
@@ -60,6 +61,20 @@ export class GraphMailer implements Mailer {
         body: msg.html ? { contentType: 'HTML', content: msg.html } : { contentType: 'Text', content: msg.text },
         toRecipients: [{ emailAddress: { address: msg.to } }],
         ...(this.cfg.replyTo ? { replyTo: [{ emailAddress: { address: this.cfg.replyTo } }] } : {}),
+        // Graph takes inline images as ordinary file attachments flagged
+        // isInline; contentId is what `cid:` in the HTML resolves against.
+        ...(msg.inlineImages?.length
+          ? {
+            attachments: msg.inlineImages.map((img) => ({
+              '@odata.type': '#microsoft.graph.fileAttachment',
+              name: img.filename,
+              contentType: img.contentType,
+              contentBytes: img.content.toString('base64'),
+              isInline: true,
+              contentId: img.contentId,
+            })),
+          }
+          : {}),
       },
       saveToSentItems: this.cfg.graph.saveToSentItems,
     };

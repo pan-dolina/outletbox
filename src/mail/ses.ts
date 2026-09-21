@@ -8,6 +8,12 @@ import { formatFrom, MailError, type Mailer, type OutgoingMail } from './types.j
  */
 export class SesMailer implements Mailer {
   readonly kind = 'ses' as const;
+  /**
+   * SendEmail with simple content carries no attachments, and building raw MIME
+   * by hand for one logo is not worth the failure modes. SES messages therefore
+   * link the logo from the instance instead of embedding it.
+   */
+  readonly inlineImages = false;
   private readonly client: SESv2Client;
 
   constructor(private readonly cfg: MailConfig) {

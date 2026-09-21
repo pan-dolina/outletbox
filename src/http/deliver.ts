@@ -4,6 +4,7 @@ import { ID_RE, isValidEmail, normalizeEmail, sha256Hex, TOKEN_RE } from '../cry
 import { now } from '../db.js';
 import { t } from '../i18n.js';
 import { log } from '../log.js';
+import { brandLogoImage } from '../mail/logo.js';
 import { accessCodeMail } from '../mail/templates.js';
 import {
   ChallengeRateError, createAccessSession, createChallenge, destroyAccessSession, verifyChallenge,
@@ -156,6 +157,7 @@ export function deliverRouter(ctx: AppContext): Router {
     ctx.mailer.send(accessCodeMail({
       lang: resolved.link.lang, to: resolved.link.recipient_email,
       brand: ctx.cfg.brand, publicUrl: ctx.cfg.publicUrl,
+      inlineLogo: ctx.mailer.inlineImages ? brandLogoImage(ctx.cfg.brand) : null,
       caseName: resolved.case.name, code: created.code, ttlMinutes: minutes,
     })).then(() => {
       audit(ctx.db, { actorType: 'recipient', action: 'access.code_sent', caseId: resolved.case.id, linkId: resolved.link.id, ip: req.ip });

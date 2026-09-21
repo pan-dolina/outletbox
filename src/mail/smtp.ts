@@ -10,6 +10,7 @@ import { formatFrom, MailError, type Mailer, type OutgoingMail } from './types.j
  */
 export class SmtpMailer implements Mailer {
   readonly kind = 'smtp' as const;
+  readonly inlineImages = true;
   private readonly transport: Transporter;
 
   constructor(private readonly cfg: MailConfig) {
@@ -37,6 +38,15 @@ export class SmtpMailer implements Mailer {
         subject: msg.subject,
         text: msg.text,
         html: msg.html,
+        // nodemailer turns these into a multipart/related part each, which is
+        // what makes `cid:` resolve in the HTML alternative.
+        attachments: msg.inlineImages?.map((img) => ({
+          filename: img.filename,
+          content: img.content,
+          contentType: img.contentType,
+          cid: img.contentId,
+          contentDisposition: 'inline' as const,
+        })),
       });
     } catch (err) {
       throw new MailError(`SMTP delivery failed: ${(err as Error).message}`, err);

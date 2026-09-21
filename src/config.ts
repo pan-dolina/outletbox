@@ -142,7 +142,11 @@ function str(env: NodeJS.ProcessEnv, key: string, def = ''): string {
 }
 
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
-const LOGO_EXTENSIONS = ['.png', '.svg', '.jpg', '.jpeg', '.webp'];
+/** The logo formats the branding accepts, with the media type each is served as. */
+export const LOGO_MEDIA_TYPES: Record<string, string> = {
+  '.png': 'image/png', '.svg': 'image/svg+xml', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp',
+};
+const LOGO_EXTENSIONS = Object.keys(LOGO_MEDIA_TYPES);
 
 function color(env: NodeJS.ProcessEnv, key: string, def: string): string {
   const raw = (env[key] ?? '').trim();

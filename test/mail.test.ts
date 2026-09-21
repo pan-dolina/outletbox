@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { loadConfig } from '../src/config.js';
 import { createMailer, formatFrom, MailError } from '../src/mail/index.js';
 import { LogMailer } from '../src/mail/log.js';
+import { brandLogoImage, clearLogoCache, LOGO_CONTENT_ID } from '../src/mail/logo.js';
 import { accessCodeMail } from '../src/mail/templates.js';
 import * as templates from '../src/mail/templates.js';
 import { setLogLevel } from '../src/log.js';
@@ -81,6 +82,17 @@ async function fakeHttp(handler: (req: http.IncomingMessage, body: string, res: 
 const BRAND = { name: 'Acme', logoPath: null, colorPrimary: '#1f6feb', colorTopbar: '#101418', colorAccent: '#1f6feb', footerText: '' };
 const BRANDED = { ...BRAND, logoPath: '/srv/branding/logo.png', colorTopbar: '#1f1b3d', colorAccent: '#0f766e', footerText: 'Acme · secure delivery' };
 
+/** A one-pixel PNG is a real image file, which is all the logo path needs to be. */
+const PNG_BYTES = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+
+function writeLogo(name = 'logo.png'): string {
+  const file = path.join(fs.mkdtempSync(path.join(TMP, 'brand-')), name);
+  fs.writeFileSync(file, PNG_BYTES);
+  return file;
+}
+
+const LOGO_IMAGE = { contentId: LOGO_CONTENT_ID, filename: 'logo.png', contentType: 'image/png', content: PNG_BYTES };
+
 describe('templates', () => {
   it('puts the code in the subject and never the link', () => {
     const mail = accessCodeMail({ lang: 'en', to: 'a@example.com', brand: BRAND, caseName: 'Report', code: '123456', ttlMinutes: 15 });
@@ -130,6 +142,26 @@ describe('templates', () => {
     expect(mail.html).not.toContain('<img');
   });
 
+  it('points the logo at the attachment when the driver can carry one', () => {
+    const mail = accessCodeMail({
+      lang: 'en', to: 'a@example.com', brand: BRANDED, publicUrl: 'https://box.example.com',
+      inlineLogo: LOGO_IMAGE, caseName: 'Report', code: '123456', ttlMinutes: 15,
+    });
+    expect(mail.html).toContain(`src="cid:${LOGO_CONTENT_ID}"`);
+    // Attached beats linked, so the URL must not survive as a second source.
+    expect(mail.html).not.toContain('https://box.example.com/brand/logo');
+    expect(mail.inlineImages).toEqual([LOGO_IMAGE]);
+  });
+
+  it('links the logo when the driver cannot carry attachments', () => {
+    const mail = accessCodeMail({
+      lang: 'en', to: 'a@example.com', brand: BRANDED, publicUrl: 'https://box.example.com',
+      inlineLogo: null, caseName: 'Report', code: '123456', ttlMinutes: 15,
+    });
+    expect(mail.html).toContain('src="https://box.example.com/brand/logo"');
+    expect(mail.inlineImages).toBeUndefined();
+  });
+
   it('is the only message the application can send', () => {
     // The delivery link is handed over by an administrator, never mailed, so
     // there is no second template to keep in step.
@@ -141,6 +173,35 @@ describe('templates', () => {
     expect(formatFrom('a@b.test', 'Acme, Ltd.')).toBe('"Acme, Ltd." <a@b.test>');
     expect(formatFrom('a@b.test', 'Bad\r\nName')).toBe('BadName <a@b.test>');
     expect(formatFrom('a@b.test', '')).toBe('a@b.test');
+  });
+});
+
+describe('the logo carried in the message', () => {
+  afterEach(() => clearLogoCache());
+
+  it('reads the configured file once and describes it for the message', () => {
+    const file = writeLogo();
+    const image = brandLogoImage({ ...BRAND, logoPath: file })!;
+    expect(image.contentType).toBe('image/png');
+    expect(image.filename).toBe('logo.png');
+    expect(image.content.equals(PNG_BYTES)).toBe(true);
+    // Cached: deleting the file cannot change the answer within one process.
+    fs.rmSync(file);
+    expect(brandLogoImage({ ...BRAND, logoPath: file })).not.toBeNull();
+  });
+
+  it('gives up quietly on a missing file, leaving the message to link the logo', () => {
+    expect(brandLogoImage({ ...BRAND, logoPath: path.join(TMP, 'nowhere', 'logo.png') })).toBeNull();
+  });
+
+  it('refuses to attach a logo too large to travel in every message', () => {
+    const file = writeLogo('huge.png');
+    fs.writeFileSync(file, Buffer.alloc(600 * 1024, 1));
+    expect(brandLogoImage({ ...BRAND, logoPath: file })).toBeNull();
+  });
+
+  it('has nothing to attach without branding', () => {
+    expect(brandLogoImage(BRAND)).toBeNull();
   });
 });
 
@@ -196,6 +257,29 @@ describe('SMTP driver', () => {
     expect(message).toMatch(/Subject: .*(123456|=\?UTF-8)/);
   });
 
+  it('carries the logo as an inline part the HTML can point at', async () => {
+    const smtp = await fakeSmtp();
+    const cfg = cfgFor({
+      MAIL_DRIVER: 'smtp', MAIL_FROM: 'sender@example.com',
+      SMTP_HOST: '127.0.0.1', SMTP_PORT: String(smtp.port), SMTP_SECURE: 'false', SMTP_REQUIRE_TLS: 'false',
+    });
+    const mailer = createMailer(cfg);
+    expect(mailer.inlineImages).toBe(true);
+    await mailer.send({
+      to: 'rcpt@example.com', subject: 'Access code: 123456', text: 'code',
+      html: `<img src="cid:${LOGO_CONTENT_ID}">`, inlineImages: [LOGO_IMAGE],
+    });
+    await mailer.close();
+
+    const message = smtp.messages.at(-1)!;
+    expect(message).toContain('multipart/related');
+    expect(message).toContain(`Content-ID: <${LOGO_CONTENT_ID}>`);
+    expect(message).toContain('Content-Disposition: inline');
+    expect(message).toContain('Content-Type: image/png');
+    // The bytes themselves travel base64-encoded inside that part.
+    expect(message.replace(/\n/g, '')).toContain(PNG_BYTES.toString('base64').slice(0, 40));
+  });
+
   it('reports an unreachable relay instead of hanging', async () => {
     const cfg = cfgFor({ MAIL_DRIVER: 'smtp', MAIL_FROM: 'sender@example.com', SMTP_HOST: '127.0.0.1', SMTP_PORT: '1', SMTP_REQUIRE_TLS: 'false' });
     const mailer = createMailer(cfg);
@@ -247,6 +331,32 @@ describe('Microsoft Graph driver', () => {
       saveToSentItems: false,
     });
     await mailer.close();
+  });
+
+  it('attaches the logo as an inline file attachment', async () => {
+    const graph = await graphServer();
+    const mailer = createMailer(graphCfg(graph.port));
+    expect(mailer.inlineImages).toBe(true);
+    await mailer.send({
+      to: 'rcpt@example.com', subject: 'Access code: 123456', text: 'code',
+      html: `<img src="cid:${LOGO_CONTENT_ID}">`, inlineImages: [LOGO_IMAGE],
+    });
+    await mailer.close();
+
+    const attachment = (graph.bodies[0] as { message: { attachments: Array<Record<string, unknown>> } }).message.attachments[0]!;
+    expect(attachment['@odata.type']).toBe('#microsoft.graph.fileAttachment');
+    expect(attachment.isInline).toBe(true);
+    expect(attachment.contentId).toBe(LOGO_CONTENT_ID);
+    expect(attachment.contentType).toBe('image/png');
+    expect(Buffer.from(attachment.contentBytes as string, 'base64').equals(PNG_BYTES)).toBe(true);
+  });
+
+  it('sends no attachments array when there is nothing to attach', async () => {
+    const graph = await graphServer();
+    const mailer = createMailer(graphCfg(graph.port));
+    await mailer.send({ to: 'rcpt@example.com', subject: 'Access code: 123456', text: 'code' });
+    await mailer.close();
+    expect((graph.bodies[0] as { message: Record<string, unknown> }).message).not.toHaveProperty('attachments');
   });
 
   it('honours a reply-to address and sends text-only when there is no HTML', async () => {
@@ -328,6 +438,13 @@ describe('Amazon SES driver', () => {
       delete process.env.AWS_ACCESS_KEY_ID;
       delete process.env.AWS_SECRET_ACCESS_KEY;
     }
+  });
+
+  it('declares that it cannot carry an inline logo', () => {
+    // SendEmail with simple content has nowhere to put an attachment, so the
+    // caller must link the logo instead of embedding it.
+    const mailer = createMailer(cfgFor({ MAIL_DRIVER: 'ses', MAIL_FROM: 'sender@example.com', SES_REGION: 'eu-central-1' }));
+    expect(mailer.inlineImages).toBe(false);
   });
 
   it('wraps an API failure in a MailError', async () => {

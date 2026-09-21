@@ -1,5 +1,18 @@
 import type { MailDriverKind } from '../config.js';
 
+/**
+ * An image carried inside the message and referenced from the HTML part as
+ * `cid:<contentId>`. Mail clients render those without asking the reader to
+ * "display remote content", and nothing is fetched from us, so the message
+ * does not report back when it was opened.
+ */
+export interface InlineImage {
+  contentId: string;
+  filename: string;
+  contentType: string;
+  content: Buffer;
+}
+
 export interface OutgoingMail {
   to: string;
   subject: string;
@@ -7,6 +20,8 @@ export interface OutgoingMail {
   text: string;
   /** Optional HTML alternative. */
   html?: string;
+  /** Referenced from the HTML part; only drivers with `inlineImages` receive them. */
+  inlineImages?: InlineImage[];
 }
 
 export class MailError extends Error {
@@ -18,6 +33,12 @@ export class MailError extends Error {
 
 export interface Mailer {
   readonly kind: MailDriverKind;
+  /**
+   * Whether this driver can carry `InlineImage`s. False for SES, whose simple
+   * SendEmail call takes no attachments, so its messages link the logo from the
+   * instance instead. The caller asks before building the message.
+   */
+  readonly inlineImages: boolean;
   send(msg: OutgoingMail): Promise<void>;
   /** Cheap configuration/connectivity probe; never throws for the log driver. */
   verify(): Promise<void>;

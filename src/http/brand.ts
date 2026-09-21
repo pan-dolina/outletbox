@@ -1,9 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { Router } from 'express';
-import type { Brand } from '../config.js';
-
-const LOGO_TYPES: Record<string, string> = { '.png': 'image/png', '.svg': 'image/svg+xml', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp' };
+import { LOGO_MEDIA_TYPES, type Brand } from '../config.js';
 
 /**
  * Branding endpoints: the configured logo and a generated stylesheet that
@@ -31,7 +29,7 @@ export function brandRouter(brand: Brand): Router {
       res.status(404).type('text/plain').send('No logo configured');
       return;
     }
-    const type = LOGO_TYPES[path.extname(brand.logoPath).toLowerCase()];
+    const type = LOGO_MEDIA_TYPES[path.extname(brand.logoPath).toLowerCase()];
     if (!type || !fs.existsSync(brand.logoPath)) {
       res.status(404).type('text/plain').send('Logo file not found');
       return;

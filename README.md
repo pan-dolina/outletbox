@@ -19,7 +19,8 @@ drive and not a sharing tool: no public links, no previews, no self-registration
 - **UI languages:** English and Polish, for the panel, the recipient pages and the e-mails.
   Each recipient is addressed in the language chosen when they were added.
 - **Branding:** name, logo and colours apply to the panel, the recipient pages *and* the
-  code e-mail, so the message and the page asking for the code look like one thing.
+  code e-mail, so the message and the page asking for the code look like one thing. The
+  logo is embedded in the message itself, except on SES, which links it.
 - **Light and dark theme:** follows `prefers-color-scheme`. No toggle, no script, no cookie.
 
 ---
@@ -213,8 +214,18 @@ administrator copies it from the panel and passes it to the recipient the way th
 normally reach them. A message that leaks therefore carries a code that is useless without
 the link, and a link that leaks is useless without the mailbox. The message is written in
 the language the link was issued in, not in the language of whoever asked for the code,
-and it carries the instance branding: the logo is referenced from `PUBLIC_URL/brand/logo`,
-so a recipient whose client blocks remote images sees the brand name in its place.
+and it carries the instance branding.
+
+**How the logo travels depends on the driver.** With `smtp` and `graph` it is attached to
+the message and referenced as `cid:`, which every mail client renders without asking the
+reader to allow remote content — and, just as importantly, without telling the instance
+when the message was opened. **With `ses` the logo is linked from `PUBLIC_URL/brand/logo`
+instead**: SESv2 `SendEmail` with simple content carries no attachments, and building raw
+MIME by hand for one image is not worth the failure modes. An SES instance therefore needs
+`PUBLIC_URL` to be reachable from the recipient's network for the logo to appear, and
+readers who block remote images see the brand name in its place. The same fallback applies
+whenever the logo file cannot be read or is larger than 512 KB — a logo that big has no
+business travelling in every message.
 
 | Driver | Use it for | Required settings |
 |---|---|---|

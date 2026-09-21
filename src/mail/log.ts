@@ -19,6 +19,8 @@ export interface RecordedMail extends OutgoingMail {
  */
 export class LogMailer implements Mailer {
   readonly kind = 'log' as const;
+  /** Nothing is sent, but the message is recorded whole, attachments included. */
+  readonly inlineImages = true;
   private readonly ring: RecordedMail[] = [];
 
   constructor(private readonly from: string, private readonly spoolDir?: string, private readonly keep = 50) {}
@@ -38,7 +40,9 @@ export class LogMailer implements Mailer {
       fs.mkdirSync(this.spoolDir, { recursive: true, mode: 0o700 });
       const name = `${record.at.replace(/[:.]/g, '-')}-${Math.random().toString(36).slice(2, 8)}.txt`;
       const full = path.join(this.spoolDir, name);
-      fs.writeFileSync(full, [`From: ${record.from}`, `To: ${record.to}`, `Subject: ${record.subject}`, `Date: ${record.at}`, '', record.text, ''].join('\n'), { mode: 0o600 });
+      // The attachments are listed, not written: the spool is there to be read.
+      const inline = (record.inlineImages ?? []).map((i) => `X-Inline-Image: <${i.contentId}> ${i.filename} (${i.contentType}, ${i.content.byteLength} B)`);
+      fs.writeFileSync(full, [`From: ${record.from}`, `To: ${record.to}`, `Subject: ${record.subject}`, `Date: ${record.at}`, ...inline, '', record.text, ''].join('\n'), { mode: 0o600 });
       return full;
     } catch (err) {
       log.warn('mail: could not write to the spool directory', { err: err as Error });

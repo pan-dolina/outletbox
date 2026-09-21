@@ -2,7 +2,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { boot, pathOf, Visitor, type TestApp } from './helpers.js';
+import { boot, pathOf, RECIPIENT, Visitor, type TestApp } from './helpers.js';
+import { clearLogoCache, LOGO_CONTENT_ID } from '../src/mail/logo.js';
 
 const PNG = Buffer.from('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a49444154789c6360000002000100ffff03000006000557bfabd40000000049454e44ae426082', 'hex');
 
@@ -28,6 +29,24 @@ describe('branding', () => {
     expect(page).toContain('<img class="brand-logo" src="/brand/logo"');
     expect(page).toContain('internal use only');
     expect(page).toContain('/brand/theme.css');
+  });
+
+  it('sends the code e-mail with the logo attached, not linked', async () => {
+    clearLogoCache();
+    const link = app.mkLink(app.mkCase('Brand delivery').id);
+    const v = new Visitor(app.base);
+    const p = pathOf(link.url);
+    await v.getPage(p);
+    await v.post(`${p}/email`, { email: RECIPIENT });
+
+    const mail = app.mailer.recent()[0]!;
+    expect(mail.inlineImages).toHaveLength(1);
+    expect(mail.inlineImages![0]!.content.equals(PNG)).toBe(true);
+    expect(mail.html).toContain(`src="cid:${LOGO_CONTENT_ID}"`);
+    // Nothing is fetched from the instance, so opening the message is not reported back.
+    expect(mail.html).not.toContain('/brand/logo');
+    expect(mail.html).toContain('#042f2e');
+    expect(mail.text).toContain('internal use only');
   });
 
   it('serves the colours as a stylesheet, so the CSP needs no unsafe-inline', async () => {
