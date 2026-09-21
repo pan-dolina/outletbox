@@ -1,0 +1,235 @@
+/*
+ * Colour tokens. The light set is the default; the dark set below is applied
+ * from the operating system / browser preference only — there is no toggle and
+ * no JavaScript, so the strict CSP stays untouched and the choice survives a
+ * reload without a cookie.
+ *
+ * --primary / --topbar / --accent are deliberately NOT redefined in the dark
+ * block: /brand/theme.css overrides them per instance and must keep winning.
+ * Everything that needs to blend with the page mixes against --mix-base instead
+ * of a hard-coded white.
+ */
+:root {
+  color-scheme: light dark;
+  --bg: #f5f6f8;
+  --card: #ffffff;
+  --text: #1c1f24;
+  --muted: #6b7280;
+  --border: #dfe3e8;
+  --primary: #1f6feb;
+  --topbar: #101418;
+  --accent: #1f6feb;
+  --primary-text: #ffffff;
+  --danger: #c0392b;
+  --ok: #1a7f37;
+  --warn-bg: #fff8e1;
+  --warn-border: #f0c36d;
+  --highlight: #eaf3ff;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Surfaces that used to be hard-coded white/grey. */
+  --mix-base: #ffffff;
+  --code-bg: #f0f2f5;
+  --input-bg: #ffffff;
+  --btn-bg: #ffffff;
+  --btn-bg-hover: #f0f2f5;
+  --btn-primary-shade: black;
+  --danger-border: #e8b4ae;
+  --danger-bg-hover: #fdf1ef;
+  --dropzone-bg: #fafbfc;
+  --dropzone-border: #b7c0cc;
+
+  --badge-bg: #e5e7eb;
+  --badge-text: #374151;
+  --badge-ok-bg: #dcfce7;
+  --badge-ok-text: #166534;
+  --badge-bad-bg: #fee2e2;
+  --badge-bad-text: #991b1b;
+  --badge-warn-bg: #fef3c7;
+  --badge-warn-text: #92400e;
+  --badge-info-bg: #dbeafe;
+  --badge-info-text: #1e40af;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --text: #e6edf3;
+    --muted: #9198a1;
+    --border: #30363d;
+    --danger: #ff7b72;
+    --ok: #3fb950;
+    --warn-bg: #2b2413;
+    --warn-border: #7d6417;
+    --highlight: #17233a;
+
+    --mix-base: #161b22;
+    --code-bg: #0d1117;
+    --input-bg: #0d1117;
+    --btn-bg: #21262d;
+    --btn-bg-hover: #30363d;
+    /* Hover brightens instead of darkening: on a dark page "darker" reads as disabled. */
+    --btn-primary-shade: white;
+    --danger-border: #6e2b26;
+    --danger-bg-hover: #2a1512;
+    --dropzone-bg: #11161d;
+    --dropzone-border: #3d4652;
+
+    --badge-bg: #30363d;
+    --badge-text: #c9d1d9;
+    --badge-ok-bg: #12321d;
+    --badge-ok-text: #6ee787;
+    --badge-bad-bg: #3a1618;
+    --badge-bad-text: #ff9492;
+    --badge-warn-bg: #3a2c0c;
+    --badge-warn-text: #e3b341;
+    --badge-info-bg: #12233d;
+    --badge-info-text: #79c0ff;
+  }
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--text); background: var(--bg); }
+a { color: var(--primary); }
+h1 { font-size: 1.4rem; margin: 0 0 .75rem; }
+h2 { font-size: 1.15rem; margin: 0 0 .6rem; }
+code, pre, .mono { font-family: var(--mono); font-size: .9em; }
+pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; padding: .6rem .8rem; overflow-x: auto; white-space: pre-wrap; word-break: break-all; margin: 0; }
+
+.topbar { background: var(--topbar); color: #fff; }
+.topbar-inner { max-width: 1100px; margin: 0 auto; padding: .6rem 1rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.brand { color: #fff; text-decoration: none; font-weight: 700; letter-spacing: .02em; display: inline-flex; align-items: center; }
+.brand-logo { height: 32px; width: auto; max-width: 220px; display: block; }
+.nav { display: flex; align-items: center; gap: 1rem; }
+.nav a { color: #cfd6de; text-decoration: none; }
+.nav a:hover { color: #fff; }
+.nav .muted { color: #8b949e; }
+.container { max-width: 1100px; margin: 0 auto; padding: 1rem; }
+.footer { text-align: center; color: var(--muted); font-size: .8rem; padding: 2rem 1rem; }
+
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.2rem; margin-bottom: 1rem; }
+.card.narrow { max-width: 420px; margin: 3rem auto; }
+.card.highlight { background: color-mix(in srgb, var(--accent) 10%, var(--mix-base)); border-color: color-mix(in srgb, var(--accent) 35%, var(--mix-base)); }
+
+label { display: block; font-size: .9rem; color: var(--muted); margin-bottom: .6rem; }
+label input, label select, label textarea { display: block; width: 100%; margin-top: .2rem; padding: .45rem .6rem; font: inherit; color: var(--text); border: 1px solid var(--border); border-radius: 6px; background: var(--input-bg); }
+label.link { display: inline; color: var(--primary); cursor: pointer; text-decoration: underline; font-size: inherit; }
+.row { display: flex; flex-wrap: wrap; gap: .8rem; align-items: flex-end; }
+.row .grow { flex: 1 1 220px; }
+.row.space-between { justify-content: space-between; align-items: center; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .8rem; align-items: end; margin-top: .6rem; }
+.inline { display: inline; }
+details summary { cursor: pointer; font-weight: 600; margin: .4rem 0; }
+
+.btn { display: inline-block; padding: .45rem .9rem; font: inherit; font-size: .9rem; border: 1px solid var(--border); border-radius: 6px; background: var(--btn-bg); color: var(--text); cursor: pointer; text-decoration: none; }
+.btn:hover { background: var(--btn-bg-hover); }
+.btn-primary { background: var(--primary); border-color: var(--primary); color: var(--primary-text); }
+.btn-primary:hover { background: color-mix(in srgb, var(--primary) 85%, var(--btn-primary-shade)); }
+.btn-danger { color: var(--danger); border-color: var(--danger-border); }
+.btn-danger:hover { background: var(--danger-bg-hover); }
+.btn-link { background: none; border: none; color: #cfd6de; padding: 0; }
+.btn-small { padding: .2rem .6rem; font-size: .8rem; }
+.btn[disabled] { opacity: .5; cursor: not-allowed; }
+
+table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+th, td { text-align: left; padding: .5rem .5rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: .8rem; text-transform: uppercase; letter-spacing: .03em; }
+table.small { font-size: .82rem; }
+.nowrap { white-space: nowrap; }
+.filename { word-break: break-all; max-width: 380px; }
+
+/* The audit log cannot shorten its own content: opaque ids and a raw JSON details blob.
+   The ids break anywhere; the JSON is capped by an inner inline-block, because a
+   max-width on the cell itself is only a hint to auto table layout and gets ignored.
+   The scroll container is the last resort on narrow screens. */
+.table-scroll { overflow-x: auto; }
+table.audit td.id { word-break: break-all; }
+table.audit td.details > span { display: inline-block; max-width: 24rem; white-space: pre-wrap; word-break: break-word; }
+
+.badge { display: inline-block; padding: .1rem .5rem; border-radius: 999px; font-size: .75rem; font-weight: 600; background: var(--badge-bg); color: var(--badge-text); vertical-align: middle; }
+.badge-open, .badge-active, .badge-ready { background: var(--badge-ok-bg); color: var(--badge-ok-text); }
+.badge-closed, .badge-revoked, .badge-deleted, .badge-aborted { background: var(--badge-bad-bg); color: var(--badge-bad-text); }
+.badge-expired, .badge-case_closed, .badge-missing, .badge-exhausted { background: var(--badge-warn-bg); color: var(--badge-warn-text); }
+.badge-uploading { background: var(--badge-info-bg); color: var(--badge-info-text); }
+
+.muted { color: var(--muted); }
+.small { font-size: .85rem; }
+.flash { padding: .6rem .8rem; border-radius: 6px; margin-bottom: .8rem; }
+.flash-error { background: var(--badge-bad-bg); color: var(--badge-bad-text); }
+.flash-ok { background: var(--badge-ok-bg); color: var(--badge-ok-text); }
+.warning { background: var(--warn-bg); border: 1px solid var(--warn-border); padding: .6rem .8rem; border-radius: 6px; }
+
+.copy-row { display: flex; gap: .5rem; }
+.copy-row input { flex: 1; padding: .45rem .6rem; font: inherit; color: var(--text); background: var(--input-bg); border: 1px solid var(--border); border-radius: 6px; }
+.snippet { margin-bottom: .8rem; }
+.snippet-head { display: flex; justify-content: space-between; align-items: center; font-size: .85rem; color: var(--muted); margin-bottom: .3rem; }
+
+/* The drop target is the primary action on the upload page, so it is deliberately large. */
+.dropzone {
+  border: 2px dashed var(--dropzone-border); border-radius: 8px; padding: 2.5rem 1.5rem; min-height: 200px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .2rem;
+  text-align: center; background: var(--dropzone-bg); transition: background .15s, border-color .15s;
+}
+.dropzone.dragover { background: color-mix(in srgb, var(--accent) 12%, var(--mix-base)); border-color: var(--primary); }
+.dropzone p { margin: .3rem 0; }
+.dropzone .dropzone-lead { font-size: 1.05rem; }
+.dropzone:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.limits { margin: .4rem 0 0; padding-left: 1.2rem; }
+
+/* Terminal instructions: present, but folded away so the drop target stays the focus. */
+.collapsible > summary { font-size: 1.15rem; font-weight: 600; margin: 0; }
+.collapsible > summary .summary-hint { font-size: .85rem; font-weight: 400; color: var(--muted); }
+.collapsible[open] > summary { margin-bottom: .8rem; }
+.collapsible > summary:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; border-radius: 4px; }
+
+.queue { list-style: none; padding: 0; margin: 1rem 0 0; }
+.queue li { border: 1px solid var(--border); border-radius: 6px; padding: .6rem .8rem; margin-bottom: .5rem; }
+.queue .q-head { display: flex; justify-content: space-between; gap: 1rem; align-items: center; }
+.queue .q-name { font-weight: 600; word-break: break-all; }
+.queue .q-status { font-size: .85rem; color: var(--muted); white-space: nowrap; }
+.queue .q-status.error { color: var(--danger); }
+.queue .q-status.done { color: var(--ok); }
+/* <progress> deliberately keeps its native appearance: `appearance: none` (which is
+   what restyling the fill requires) also removes the browser's built-in indeterminate
+   animation, and that animation is the whole point of the "finalising" state below. */
+.queue progress { width: 100%; height: 8px; margin-top: .4rem; }
+.queue li.done { border-color: color-mix(in srgb, var(--ok) 45%, var(--border)); }
+.queue .q-actions { margin-top: .4rem; }
+
+@media (max-width: 640px) {
+  .topbar-inner { flex-direction: column; align-items: flex-start; }
+  table, thead, tbody, th, td, tr { display: block; }
+  thead { display: none; }
+  tr { border-bottom: 1px solid var(--border); padding: .4rem 0; }
+  td { border: none; padding: .15rem .2rem; }
+  td::before { content: attr(data-label); color: var(--muted); font-size: .75rem; display: block; }
+  .filename { max-width: none; }
+  table.audit td.details > span { max-width: none; }
+}
+
+/* The hidden attribute must win over display rules on .btn etc. */
+[hidden] { display: none !important; }
+
+.qr { width: 200px; flex: 0 0 auto; }
+/* The QR code keeps a white quiet zone in both themes: scanners need the contrast. */
+.qr svg { width: 200px; height: 200px; display: block; border: 1px solid var(--border); border-radius: 6px; background: #fff; }
+.btn-link-muted { color: var(--muted); }
+.breakable { word-break: break-all; }
+.lang-switch a { color: var(--muted); }
+.lang-current { font-weight: 600; }
+.version { white-space: nowrap; }
+
+/* ---- recipient unlock flow and admin note/link forms --------------------- */
+.stack { display: flex; flex-direction: column; gap: .8rem; align-items: flex-start; }
+.stack label { width: 100%; }
+.stack textarea { width: 100%; font: inherit; padding: .5rem .6rem; border: 1px solid var(--border); border-radius: 6px; background: var(--input-bg); color: var(--text); }
+.grid-full { grid-column: 1 / -1; }
+label.check { display: flex; flex-direction: row; align-items: center; gap: .5rem; font-weight: 400; }
+label.check input { width: auto; }
+/* The one-time code is short and typed from a phone: give it room and spacing. */
+.code-input { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 1.4rem; letter-spacing: .4rem; text-align: center; }
+.note { border: 1px solid var(--border); border-radius: 6px; padding: .8rem 1rem; margin-bottom: .8rem; }
+.note h3 { margin: 0 0 .4rem; font-size: 1rem; }
+.note-body { margin: 0; white-space: pre-wrap; word-break: break-word; font: inherit; background: none; border: none; padding: 0; }

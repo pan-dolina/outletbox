@@ -1,0 +1,47 @@
+{
+  "name": "outletbox",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Self-hosted secure file delivery: admins publish files and notes for a client, who unlocks them with their e-mail address and a one-time code.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env --import tsx --watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node --env-file-if-exists=.env dist/server.js",
+    "cli": "node --env-file-if-exists=.env --import tsx src/cli.ts",
+    "test": "vitest run",
+    "test:s3": "TEST_S3=1 vitest run",
+    "test:coverage": "vitest run --coverage",
+    "audit": "npm audit --audit-level=high",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1136.0",
+    "@aws-sdk/client-sesv2": "^3.1136.0",
+    "@aws-sdk/lib-storage": "^3.1136.0",
+    "@tus/file-store": "^2.1.1",
+    "@tus/s3-store": "^2.0.6",
+    "@tus/server": "^2.4.5",
+    "content-disposition": "^3.0.0",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.3.0",
+    "helmet": "^8.1.0",
+    "nodemailer": "^10.0.10",
+    "qrcode": "^1.5.4",
+    "tus-js-client": "^4.3.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^24.13.6",
+    "@types/nodemailer": "^8.0.2",
+    "@types/qrcode": "^1.5.6",
+    "@vitest/coverage-v8": "^5.0.1",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1"
+  }
+}
