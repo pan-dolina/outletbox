@@ -10,7 +10,7 @@ It is the mirror image of [inletbox](https://github.com/pan-dolina/inletbox), wh
 collects files *from* external parties; outletbox hands them *out*. This is not a network
 drive and not a sharing tool: no public links, no previews, no self-registration.
 
-- **Stack:** Node.js 24+ (TypeScript, Express 5), SQLite (built-in `node:sqlite`), local
+- **Stack:** Node.js 26+ (TypeScript, Express 5), SQLite (built-in `node:sqlite`), local
   disk or S3/MinIO storage, resumable admin uploads via the **tus** protocol. No native modules.
 - **Mail:** SMTP, Microsoft 365 (Graph, app-only OAuth), Amazon SES, or a `log` driver that
   sends nothing and is the default.
