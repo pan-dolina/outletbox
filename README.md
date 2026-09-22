@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="design/logo-outletbox.png" alt="outletbox" width="368">
+</p>
+
 # outletbox
 
 A private, self-hosted **delivery box** for sending files to clients. An administrator
