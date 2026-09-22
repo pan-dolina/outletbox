@@ -1,564 +1,63 @@
 /**
- * Minimal i18n: two dictionaries with identical keys, `{param}` placeholders,
- * language detected per request from a cookie or Accept-Language (default: en).
+ * Minimal i18n: one dictionary per language in src/locales/ with identical keys,
+ * `{param}` placeholders, language detected per request from a cookie or
+ * Accept-Language (default: en).
+ *
+ * The languages are the 24 official languages of the European Union. English is the
+ * source; every other dictionary is typed as `Messages`, so a missing key is a compile
+ * error, and test/i18n.test.ts checks that each translation keeps the placeholders.
  */
+import { bg } from './locales/bg.js';
+import { cs } from './locales/cs.js';
+import { da } from './locales/da.js';
+import { de } from './locales/de.js';
+import { el } from './locales/el.js';
+import { en } from './locales/en.js';
+import { es } from './locales/es.js';
+import { et } from './locales/et.js';
+import { fi } from './locales/fi.js';
+import { fr } from './locales/fr.js';
+import { ga } from './locales/ga.js';
+import { hr } from './locales/hr.js';
+import { hu } from './locales/hu.js';
+import { it } from './locales/it.js';
+import { lt } from './locales/lt.js';
+import { lv } from './locales/lv.js';
+import { mt } from './locales/mt.js';
+import { nl } from './locales/nl.js';
+import { pl } from './locales/pl.js';
+import { pt } from './locales/pt.js';
+import { ro } from './locales/ro.js';
+import { sk } from './locales/sk.js';
+import { sl } from './locales/sl.js';
+import { sv } from './locales/sv.js';
 
-export type Lang = 'en' | 'pl';
-export const LANGS: Lang[] = ['en', 'pl'];
+export type Lang =
+  | 'bg' | 'cs' | 'da' | 'de' | 'el' | 'en' | 'es' | 'et' | 'fi' | 'fr' | 'ga' | 'hr'
+  | 'hu' | 'it' | 'lt' | 'lv' | 'mt' | 'nl' | 'pl' | 'pt' | 'ro' | 'sk' | 'sl' | 'sv';
 export const DEFAULT_LANG: Lang = 'en';
 export const LANG_COOKIE = 'outletbox_lang';
 
-const en = {
-  // ---- layout / common
-  'app.tagline': 'secure file delivery',
-  'common.back_to_cases': '← Cases',
-  'common.home': 'Home',
-  'common.copy': 'Copy',
-  'common.copied': 'Copied',
-  'common.copy_manual': 'Select and copy manually',
-  'common.save': 'Save',
-  'common.create': 'Create',
-  'common.add': 'Add',
-  'common.cancel': 'Cancel',
-  'common.retry': 'Retry',
-  'common.never': 'never',
-  'common.unlimited': 'no limit',
-  'common.no_expiry': 'no expiry',
-  'common.none': '—',
-  'common.optional': 'optional',
-  'common.loading': 'Loading…',
-  'common.yes': 'Yes',
-  'common.language': 'Language',
-  'common.continue': 'Continue',
-
-  // ---- nav
-  'nav.cases': 'Cases',
-  'nav.audit': 'Audit log',
-  'nav.security': 'Security',
-  'nav.logout': 'Log out',
-
-  // ---- errors / pages
-  'error.not_found.title': 'Not found',
-  'error.page_missing': 'This page does not exist.',
-  'error.case_missing': 'This case does not exist.',
-  'error.link_missing': 'This link does not exist.',
-  'error.item_missing': 'The item does not exist or is not available.',
-  'error.item_not_exist': 'The item does not exist.',
-  'error.storage_missing.title': 'File missing from storage',
-  'error.storage_missing': 'The metadata exists but the object has disappeared from storage. Run the cleanup to flag the file as missing.',
-  'error.server.title': 'Server error',
-  'error.server': 'An unexpected error occurred.',
-  'error.bad_request.title': 'Bad request',
-  'error.cross_site': 'Cross-site request blocked',
-  'error.csrf': 'Invalid CSRF token',
-
-  // ---- link states (shown to recipients)
-  'link.invalid.title': 'Invalid link',
-  'link.invalid': 'This delivery link does not exist.',
-  'link.unavailable.title': 'Link unavailable',
-  'link.expired': 'This link has expired.',
-  'link.revoked': 'This link has been revoked.',
-  'link.case_closed': 'This delivery has been closed and is no longer available.',
-  'link.exhausted': 'This link has already been opened the maximum number of times.',
-  'link.contact': 'Contact the person who sent you the link.',
-
-  // ---- login
-  'login.title': 'Administrator login',
-  'login.username': 'Username',
-  'login.password': 'Password',
-  'login.submit': 'Log in',
-  'login.failed': 'Invalid username or password.',
-  'login.too_many_codes': 'Too many wrong codes. Log in again.',
-  'login.account_locked': 'Too many wrong codes for this account. The second factor is locked for 15 minutes.',
-
-  // ---- second factor
-  'totp.title': 'Code from your authenticator app',
-  'totp.code_label': 'Code (6 digits) or recovery code',
-  'totp.confirm': 'Confirm',
-  'totp.cancel_logout': 'Cancel and log out',
-  'totp.invalid': 'Invalid code.',
-  'totp.attempts_left': 'Attempts left: {n}.',
-  'totp.locked_until': 'The account is temporarily locked after many wrong codes (until {until} UTC).',
-
-  // ---- security page
-  'security.title': 'Security of account “{user}”',
-  'security.required_notice': 'This instance requires two-factor authentication. The panel stays unavailable until TOTP is enabled.',
-  'security.status': 'Two-factor authentication (TOTP, RFC 6238): {state}.',
-  'security.enabled': 'enabled',
-  'security.disabled': 'disabled',
-  'security.recovery_left': 'Unused recovery codes: {n}.',
-  'security.recovery.title': 'Recovery codes',
-  'security.recovery.intro': 'Save them now in a safe place. Each works once and replaces the app code when you lose access to the app. They will not be shown again.',
-  'security.enable.title': 'Enable TOTP',
-  'security.enable.intro': 'You need an authenticator app (e.g. Aegis, Google Authenticator, 1Password, Bitwarden). Once enabled, logging in requires the password and a current code.',
-  'security.enable.start': 'Start setup',
-  'security.step1': 'Step 1: scan the code in your app',
-  'security.manual_key': 'Or enter the key manually:',
-  'security.key_params': 'Type: TOTP, SHA-1, 6 digits, 30 s. Issuer: {issuer}, account: {user}.',
-  'security.open_in_app': 'Open in authenticator app',
-  'security.on_phone': '(on a phone)',
-  'security.step2': 'Step 2: confirm with a code',
-  'security.code_from_app': 'Code from the app',
-  'security.enable.submit': 'Enable TOTP',
-  'security.pending_note': 'The key is temporary until confirmed; starting the setup again generates a new one.',
-  'security.current_code': 'Current code from the app',
-  'security.regenerate': 'Generate new codes (old ones stop working)',
-  'security.disable.title': 'Disable TOTP',
-  'security.disable.intro': 'Requires a current code from the app or a recovery code: the session alone (e.g. a stolen cookie) is not enough. If both the app and the recovery codes are lost, an operator can run {cmd} on the server.',
-  'security.disable.code': 'Code',
-  'security.disable.submit': 'Disable',
-  'security.disable.confirm': 'Disable two-factor authentication?',
-  'security.msg.enabled': 'Two-factor authentication is enabled.',
-  'security.msg.code_mismatch': 'The code does not match. Check the time on your phone and try again.',
-  'security.msg.invalid_code': 'Invalid code.',
-  'security.msg.regenerated': 'New recovery codes generated.',
-  'security.msg.required': 'This instance requires TOTP (ADMIN_REQUIRE_TOTP); it cannot be disabled.',
-  'security.msg.disabled': 'Two-factor authentication has been disabled.',
-  'security.password.title': 'Change password',
-  'security.password.current': 'Current password',
-  'security.password.new': 'New password (min. 12 characters)',
-  'security.password.confirm': 'Confirm new password',
-  'security.password.submit': 'Change password',
-  'security.password.mismatch': 'The new password and its confirmation do not match.',
-  'security.password.invalid_current': 'The current password is incorrect.',
-  'security.password.changed': 'Password changed. Other sessions of this account have been logged out.',
-
-  // ---- home page (public root)
-  'home.title': 'outletbox',
-  'home.message': 'This is a private delivery box. To collect files prepared for you, use the link you were sent; you will be asked for your e-mail address and a one-time code.',
-
-  // ---- cases
-  'cases.new': 'New case',
-  'cases.name': 'Name',
-  'cases.name_placeholder': 'e.g. Audit report 2026/09 – Client X',
-  'cases.description_optional': 'Description (optional, shown to the recipient)',
-  'cases.description': 'Description',
-  'cases.list': 'Cases',
-  'cases.empty': 'No cases.',
-  'cases.col.name': 'Name',
-  'cases.col.status': 'Status',
-  'cases.col.links': 'Active links',
-  'cases.col.items': 'Items',
-  'cases.col.size': 'Size',
-  'cases.col.created': 'Created',
-  'case.open': 'open',
-  'case.closed': 'closed',
-  'case.close': 'Close case',
-  'case.reopen': 'Reopen',
-  'case.meta': 'ID: {id} · created {date}. A closed case cannot be opened by any of its links.',
-  'case.saved': 'Saved.',
-  'case.closed_no_links': 'The case is closed – reopen it to generate links.',
-  'case.new_link.title': 'New link for “{label}”',
-  'case.new_link.intro': 'Copy it now. The token is stored only as a hash and cannot be recovered later – you can only generate a new link.',
-  'case.new_link.copy_now': 'Copy it now.',
-
-  // ---- items (files and notes an admin prepares)
-  'items.title': 'Contents of the delivery',
-  'items.intro': 'Files and notes below are what every recipient of this case sees once they unlock their link.',
-  'items.upload': 'Add files',
-  'items.drop_here': 'Drag files here',
-  'items.or': 'or',
-  'items.choose': 'choose from disk',
-  'items.upload_hint': 'Large files are sent in parts and resume after a lost connection. Maximum file size: {max}.',
-  'items.note.title': 'Add a note',
-  'items.note.subject': 'Title',
-  'items.note.subject_placeholder': 'e.g. Password for the archive',
-  'items.note.body': 'Text',
-  'items.note.body_placeholder': 'The text the recipient will read on the page.',
-  'items.empty': 'Nothing has been added to this case yet.',
-  'items.col.item': 'Item',
-  'items.col.kind': 'Type',
-  'items.col.size': 'Size',
-  'items.col.status': 'Status',
-  'items.col.added': 'Added',
-  'items.kind.file': 'file',
-  'items.kind.note': 'note',
-  'items.declared': '{size} (declared)',
-  'items.download': 'Download',
-  'items.delete': 'Delete',
-  'items.delete_confirm': 'Delete “{name}”? This cannot be undone.',
-  'items.note_added': 'Note added.',
-  'items.note_empty': 'A note needs a title and some text.',
-  'items.status.uploading': 'in progress',
-  'items.status.ready': 'ready',
-  'items.status.aborted': 'aborted',
-  'items.status.expired': 'expired',
-  'items.status.missing': 'missing from storage',
-  'items.status.deleted': 'deleted',
-  'items.untrusted': 'Files are stored as opaque objects and always served as attachments; nothing is rendered or executed on the server.',
-
-  // ---- links (recipients)
-  'links.title': 'Recipients',
-  'links.intro': 'Each link belongs to one recipient and one e-mail address. Opening it requires typing that exact address and then a one-time code sent to it, so forwarding the link alone is not enough.',
-  'links.generate': 'Add a recipient',
-  'links.label': 'Recipient label',
-  'links.label_placeholder': 'e.g. Jane Doe – accounting',
-  'links.email': 'Recipient e-mail (the challenge is sent here)',
-  'links.expires': 'Valid until (UTC, optional)',
-  'links.max_opens': 'Maximum number of openings (optional)',
-  'links.max_opens_hint': 'One opening = one accepted code. Downloads inside a session are not counted.',
-  'links.submit': 'Create link',
-  'links.empty': 'No recipients yet.',
-  'links.col.recipient': 'Recipient',
-  'links.col.state': 'State',
-  'links.col.expires': 'Valid until',
-  'links.col.opens': 'Openings',
-  'links.col.last_used': 'Last opened',
-  'links.state.active': 'active',
-  'links.state.expired': 'expired',
-  'links.state.revoked': 'revoked',
-  'links.state.case_closed': 'case closed',
-  'links.state.exhausted': 'used up',
-  'links.opens': '{used} of {max}',
-  'links.opens_unlimited': '{used} (no limit)',
-  'links.revoke': 'Revoke',
-  'links.revoke_confirm': 'Revoke the link for “{label}”? Any open session ends immediately.',
-  'links.reissue': 'Issue a new link',
-  'links.reissue_confirm': 'Issue a NEW link for “{label}”? The previous one stops working immediately, and any open session ends.',
-  'links.handover': 'The application never sends the link itself — copy it and pass it to the recipient the way you normally reach them. Only the one-time code goes out by e-mail.',
-  'links.invalid_email': 'Enter a valid e-mail address.',
-  'links.mail_driver': 'Mail driver for one-time codes: {driver}.',
-  'links.lang': 'Language for this recipient',
-  'links.lang_hint': 'The code e-mail and the pages this person sees use it. It starts on the language you are reading the panel in.',
-  'links.col.lang': 'Language',
-  'lang.en': 'English',
-  'lang.pl': 'Polski',
-
-  // ---- audit
-  'audit.title': 'Audit log (last {n})',
-  'audit.col.time': 'Time',
-  'audit.col.actor': 'Actor',
-  'audit.col.action': 'Event',
-  'audit.col.case': 'Case',
-  'audit.col.link': 'Link',
-  'audit.col.item': 'Item',
-  'audit.col.ip': 'IP',
-  'audit.col.details': 'Details',
-
-  // ---- recipient flow
-  'deliver.title': 'Secure delivery',
-  'deliver.email.title': 'Confirm your e-mail address',
-  'deliver.email.intro': 'Files have been prepared for you. Enter the e-mail address this delivery was addressed to; a one-time code will be sent there.',
-  'deliver.email.label': 'E-mail address',
-  'deliver.email.submit': 'Send me a code',
-  'deliver.email.invalid': 'Enter a valid e-mail address.',
-  'deliver.code.title': 'Enter the code from the e-mail',
-  'deliver.code.sent': 'If the address matches this delivery, a one-time code has just been sent to it. It is valid for {minutes} minutes.',
-  'deliver.code.label': 'One-time code',
-  'deliver.code.digit': 'Digit {n} of {total}',
-  'deliver.code.paste_hint': 'You can paste the whole code at once.',
-  'deliver.code.submit': 'Open the delivery',
-  'deliver.code.invalid': 'Invalid code.',
-  'deliver.code.attempts_left': 'Attempts left: {n}.',
-  'deliver.code.expired': 'The code has expired or was used too many times. Request a new one.',
-  'deliver.code.again': 'Start over',
-  'deliver.too_many': 'Too many code requests for this link. Try again later or ask the sender for a new link.',
-  'deliver.mail_failed': 'The code could not be sent right now. Try again in a moment or contact the sender.',
-  'deliver.package.title': 'Your delivery',
-  'deliver.package.intro': 'Prepared for {label}. Download the files now — this page closes when the session ends.',
-  'deliver.package.notes': 'Notes',
-  'deliver.package.files': 'Files',
-  'deliver.package.empty': 'The sender has not added anything yet.',
-  'deliver.package.download': 'Download',
-  'deliver.package.opens_left': 'Openings left after this one: {n}.',
-  'deliver.package.opens_unlimited': 'The number of openings is not limited.',
-  'deliver.package.session_until': 'This session stays open until {date}.',
-  'deliver.package.valid_until': 'The link itself is valid until {date}.',
-  'deliver.package.close': 'Close the session',
-  'deliver.session_over': 'The session has ended. Enter your e-mail address again to receive a new code.',
-
-  // ---- e-mails
-  'mail.code.subject': 'Access code: {code}',
-  'mail.code.greeting': 'Hello,',
-  'mail.code.intro': 'somebody (hopefully you) is opening the delivery “{case}” prepared for you by {brand}.',
-  'mail.code.code_line': 'Your one-time code: {code}',
-  'mail.code.validity': 'The code is valid for {minutes} minutes and can be used once.',
-  'mail.code.ignore': 'If you did not request it, ignore this message — without the code nobody can open the delivery.',
-  'mail.code.footer': 'This message was sent automatically by {brand}. Please do not reply.',
-
-  // ---- admin uploader (browser)
-  'upload.js.queued': 'queued…',
-  'upload.js.too_large': 'too large: limit {max}',
-  'upload.js.error': 'error: {msg}',
-  'upload.js.starting': 'starting…',
-  'upload.js.resuming': 'resuming previous upload…',
-  'upload.js.retrying': 'retrying…',
-  'upload.js.done': 'added',
-  'upload.js.finalising': 'all bytes sent, the server is finishing…',
-  'upload.js.cancelled': 'cancelled',
-  'upload.js.cancelled_local': 'cancelled (locally)',
-  'upload.js.reload': 'Refresh the list',
-};
-
-const pl: Record<keyof typeof en, string> = {
-  'app.tagline': 'bezpieczne przekazywanie plików',
-  'common.back_to_cases': '← Sprawy',
-  'common.home': 'Strona główna',
-  'common.copy': 'Kopiuj',
-  'common.copied': 'Skopiowano',
-  'common.copy_manual': 'Zaznacz i skopiuj ręcznie',
-  'common.save': 'Zapisz',
-  'common.create': 'Utwórz',
-  'common.add': 'Dodaj',
-  'common.cancel': 'Anuluj',
-  'common.retry': 'Ponów',
-  'common.never': 'nigdy',
-  'common.unlimited': 'bez limitu',
-  'common.no_expiry': 'bezterminowo',
-  'common.none': '—',
-  'common.optional': 'opcjonalnie',
-  'common.loading': 'Ładowanie…',
-  'common.yes': 'Tak',
-  'common.language': 'Język',
-  'common.continue': 'Dalej',
-
-  'nav.cases': 'Sprawy',
-  'nav.audit': 'Dziennik',
-  'nav.security': 'Bezpieczeństwo',
-  'nav.logout': 'Wyloguj',
-
-  'error.not_found.title': 'Nie znaleziono',
-  'error.page_missing': 'Strona nie istnieje.',
-  'error.case_missing': 'Taka sprawa nie istnieje.',
-  'error.link_missing': 'Taki link nie istnieje.',
-  'error.item_missing': 'Pozycja nie istnieje lub nie jest dostępna.',
-  'error.item_not_exist': 'Pozycja nie istnieje.',
-  'error.storage_missing.title': 'Brak pliku w storage',
-  'error.storage_missing': 'Metadane istnieją, ale obiekt zniknął ze storage. Uruchom sprzątanie, aby oznaczyć plik jako brakujący.',
-  'error.server.title': 'Błąd serwera',
-  'error.server': 'Wystąpił nieoczekiwany błąd.',
-  'error.bad_request.title': 'Nieprawidłowe żądanie',
-  'error.cross_site': 'Żądanie z innej witryny zostało zablokowane',
-  'error.csrf': 'Nieprawidłowy token CSRF',
-
-  'link.invalid.title': 'Nieprawidłowy link',
-  'link.invalid': 'Taki link do przesyłki nie istnieje.',
-  'link.unavailable.title': 'Link niedostępny',
-  'link.expired': 'Ważność linku wygasła.',
-  'link.revoked': 'Link został unieważniony.',
-  'link.case_closed': 'Przesyłka została zamknięta i nie jest już dostępna.',
-  'link.exhausted': 'Link został już otwarty maksymalną liczbę razy.',
-  'link.contact': 'Skontaktuj się z osobą, która przesłała link.',
-
-  'login.title': 'Logowanie administratora',
-  'login.username': 'Użytkownik',
-  'login.password': 'Hasło',
-  'login.submit': 'Zaloguj',
-  'login.failed': 'Nieprawidłowy użytkownik lub hasło.',
-  'login.too_many_codes': 'Zbyt wiele błędnych kodów. Zaloguj się ponownie.',
-  'login.account_locked': 'Zbyt wiele błędnych kodów dla tego konta. Drugi składnik jest zablokowany na 15 minut.',
-
-  'totp.title': 'Kod z aplikacji uwierzytelniającej',
-  'totp.code_label': 'Kod (6 cyfr) lub kod zapasowy',
-  'totp.confirm': 'Potwierdź',
-  'totp.cancel_logout': 'Anuluj i wyloguj',
-  'totp.invalid': 'Nieprawidłowy kod.',
-  'totp.attempts_left': 'Pozostałe próby: {n}.',
-  'totp.locked_until': 'Konto jest tymczasowo zablokowane po wielu błędnych kodach (do {until} UTC).',
-
-  'security.title': 'Bezpieczeństwo konta „{user}”',
-  'security.required_notice': 'Ta instancja wymaga uwierzytelniania dwuskładnikowego. Panel pozostaje niedostępny, dopóki nie włączysz TOTP.',
-  'security.status': 'Uwierzytelnianie dwuskładnikowe (TOTP, RFC 6238): {state}.',
-  'security.enabled': 'włączone',
-  'security.disabled': 'wyłączone',
-  'security.recovery_left': 'Niewykorzystane kody zapasowe: {n}.',
-  'security.recovery.title': 'Kody zapasowe',
-  'security.recovery.intro': 'Zapisz je teraz w bezpiecznym miejscu. Każdy działa raz i zastępuje kod z aplikacji, gdy stracisz do niej dostęp. Nie zostaną pokazane ponownie.',
-  'security.enable.title': 'Włącz TOTP',
-  'security.enable.intro': 'Potrzebujesz aplikacji uwierzytelniającej (np. Aegis, Google Authenticator, 1Password, Bitwarden). Po włączeniu logowanie wymaga hasła i bieżącego kodu.',
-  'security.enable.start': 'Rozpocznij konfigurację',
-  'security.step1': 'Krok 1: zeskanuj kod w aplikacji',
-  'security.manual_key': 'Albo wpisz klucz ręcznie:',
-  'security.key_params': 'Typ: TOTP, SHA-1, 6 cyfr, 30 s. Wystawca: {issuer}, konto: {user}.',
-  'security.open_in_app': 'Otwórz w aplikacji uwierzytelniającej',
-  'security.on_phone': '(na telefonie)',
-  'security.step2': 'Krok 2: potwierdź kodem',
-  'security.code_from_app': 'Kod z aplikacji',
-  'security.enable.submit': 'Włącz TOTP',
-  'security.pending_note': 'Klucz jest tymczasowy do czasu potwierdzenia; ponowne rozpoczęcie konfiguracji generuje nowy.',
-  'security.current_code': 'Bieżący kod z aplikacji',
-  'security.regenerate': 'Wygeneruj nowe kody (stare przestaną działać)',
-  'security.disable.title': 'Wyłącz TOTP',
-  'security.disable.intro': 'Wymaga bieżącego kodu z aplikacji albo kodu zapasowego: sama sesja (np. skradzione ciasteczko) nie wystarczy. Jeśli zgubisz i aplikację, i kody zapasowe, operator może uruchomić na serwerze {cmd}.',
-  'security.disable.code': 'Kod',
-  'security.disable.submit': 'Wyłącz',
-  'security.disable.confirm': 'Wyłączyć uwierzytelnianie dwuskładnikowe?',
-  'security.msg.enabled': 'Uwierzytelnianie dwuskładnikowe jest włączone.',
-  'security.msg.code_mismatch': 'Kod się nie zgadza. Sprawdź czas w telefonie i spróbuj ponownie.',
-  'security.msg.invalid_code': 'Nieprawidłowy kod.',
-  'security.msg.regenerated': 'Wygenerowano nowe kody zapasowe.',
-  'security.msg.required': 'Ta instancja wymaga TOTP (ADMIN_REQUIRE_TOTP); nie można go wyłączyć.',
-  'security.msg.disabled': 'Uwierzytelnianie dwuskładnikowe zostało wyłączone.',
-  'security.password.title': 'Zmiana hasła',
-  'security.password.current': 'Obecne hasło',
-  'security.password.new': 'Nowe hasło (min. 12 znaków)',
-  'security.password.confirm': 'Powtórz nowe hasło',
-  'security.password.submit': 'Zmień hasło',
-  'security.password.mismatch': 'Nowe hasło i jego powtórzenie różnią się.',
-  'security.password.invalid_current': 'Obecne hasło jest nieprawidłowe.',
-  'security.password.changed': 'Hasło zmienione. Pozostałe sesje tego konta zostały wylogowane.',
-
-  'home.title': 'outletbox',
-  'home.message': 'To jest prywatna skrzynka wydawcza. Aby odebrać przygotowane dla Ciebie pliki, użyj przesłanego linku; poprosimy o adres e-mail i jednorazowy kod.',
-
-  'cases.new': 'Nowa sprawa',
-  'cases.name': 'Nazwa',
-  'cases.name_placeholder': 'np. Raport z audytu 2026/09 – Klient X',
-  'cases.description_optional': 'Opis (opcjonalnie, widoczny dla odbiorcy)',
-  'cases.description': 'Opis',
-  'cases.list': 'Sprawy',
-  'cases.empty': 'Brak spraw.',
-  'cases.col.name': 'Nazwa',
-  'cases.col.status': 'Status',
-  'cases.col.links': 'Aktywne linki',
-  'cases.col.items': 'Pozycje',
-  'cases.col.size': 'Rozmiar',
-  'cases.col.created': 'Utworzono',
-  'case.open': 'otwarta',
-  'case.closed': 'zamknięta',
-  'case.close': 'Zamknij sprawę',
-  'case.reopen': 'Otwórz ponownie',
-  'case.meta': 'ID: {id} · utworzono {date}. Zamkniętej sprawy nie otworzy żaden z jej linków.',
-  'case.saved': 'Zapisano.',
-  'case.closed_no_links': 'Sprawa jest zamknięta – otwórz ją ponownie, aby tworzyć linki.',
-  'case.new_link.title': 'Nowy link dla „{label}”',
-  'case.new_link.intro': 'Skopiuj go teraz. Token jest przechowywany wyłącznie jako skrót i nie da się go później odtworzyć – można tylko wygenerować nowy link.',
-  'case.new_link.copy_now': 'Skopiuj go teraz.',
-
-  'items.title': 'Zawartość przesyłki',
-  'items.intro': 'Poniższe pliki i notatki zobaczy każdy odbiorca tej sprawy po odblokowaniu swojego linku.',
-  'items.upload': 'Dodaj pliki',
-  'items.drop_here': 'Przeciągnij pliki tutaj',
-  'items.or': 'albo',
-  'items.choose': 'wybierz z dysku',
-  'items.upload_hint': 'Duże pliki są wysyłane w częściach i wznawiane po zerwaniu połączenia. Maksymalny rozmiar pliku: {max}.',
-  'items.note.title': 'Dodaj notatkę',
-  'items.note.subject': 'Tytuł',
-  'items.note.subject_placeholder': 'np. Hasło do archiwum',
-  'items.note.body': 'Treść',
-  'items.note.body_placeholder': 'Tekst, który odbiorca przeczyta na stronie.',
-  'items.empty': 'Do tej sprawy nie dodano jeszcze niczego.',
-  'items.col.item': 'Pozycja',
-  'items.col.kind': 'Typ',
-  'items.col.size': 'Rozmiar',
-  'items.col.status': 'Status',
-  'items.col.added': 'Dodano',
-  'items.kind.file': 'plik',
-  'items.kind.note': 'notatka',
-  'items.declared': '{size} (deklarowane)',
-  'items.download': 'Pobierz',
-  'items.delete': 'Usuń',
-  'items.delete_confirm': 'Usunąć „{name}”? Tej operacji nie można cofnąć.',
-  'items.note_added': 'Notatka dodana.',
-  'items.note_empty': 'Notatka wymaga tytułu i treści.',
-  'items.status.uploading': 'w trakcie',
-  'items.status.ready': 'gotowe',
-  'items.status.aborted': 'przerwane',
-  'items.status.expired': 'wygasłe',
-  'items.status.missing': 'brak w storage',
-  'items.status.deleted': 'usunięte',
-  'items.untrusted': 'Pliki są przechowywane jako nieprzezroczyste obiekty i zawsze wydawane jako załączniki; nic nie jest renderowane ani wykonywane na serwerze.',
-
-  'links.title': 'Odbiorcy',
-  'links.intro': 'Każdy link należy do jednego odbiorcy i jednego adresu e-mail. Otwarcie wymaga wpisania dokładnie tego adresu, a następnie jednorazowego kodu wysłanego na niego – samo przekazanie linku dalej nie wystarczy.',
-  'links.generate': 'Dodaj odbiorcę',
-  'links.label': 'Etykieta odbiorcy',
-  'links.label_placeholder': 'np. Jan Kowalski – księgowość',
-  'links.email': 'E-mail odbiorcy (tam trafi wyzwanie)',
-  'links.expires': 'Ważny do (UTC, opcjonalnie)',
-  'links.max_opens': 'Maksymalna liczba otwarć (opcjonalnie)',
-  'links.max_opens_hint': 'Jedno otwarcie = jeden zaakceptowany kod. Pobrania w ramach sesji nie są liczone.',
-  'links.submit': 'Utwórz link',
-  'links.empty': 'Brak odbiorców.',
-  'links.col.recipient': 'Odbiorca',
-  'links.col.state': 'Stan',
-  'links.col.expires': 'Ważny do',
-  'links.col.opens': 'Otwarcia',
-  'links.col.last_used': 'Ostatnio otwarty',
-  'links.state.active': 'aktywny',
-  'links.state.expired': 'wygasły',
-  'links.state.revoked': 'unieważniony',
-  'links.state.case_closed': 'sprawa zamknięta',
-  'links.state.exhausted': 'wyczerpany',
-  'links.opens': '{used} z {max}',
-  'links.opens_unlimited': '{used} (bez limitu)',
-  'links.revoke': 'Unieważnij',
-  'links.revoke_confirm': 'Unieważnić link dla „{label}”? Otwarta sesja zostanie natychmiast zakończona.',
-  'links.reissue': 'Wystaw nowy link',
-  'links.reissue_confirm': 'Wystawić NOWY link dla „{label}”? Poprzedni natychmiast przestanie działać, a otwarta sesja zostanie zakończona.',
-  'links.handover': 'Aplikacja nie wysyła linku — skopiuj go i przekaż odbiorcy tak, jak zwykle się z nim kontaktujesz. Mailem idzie wyłącznie kod jednorazowy.',
-  'links.invalid_email': 'Podaj poprawny adres e-mail.',
-  'links.mail_driver': 'Kanał poczty dla kodów jednorazowych: {driver}.',
-  'links.lang': 'Język odbiorcy',
-  'links.lang_hint': 'W tym języku idzie e-mail z kodem i strony, które widzi ta osoba. Na start ustawiony jest język, w którym sam czytasz panel.',
-  'links.col.lang': 'Język',
-  'lang.en': 'English',
-  'lang.pl': 'Polski',
-
-  'audit.title': 'Dziennik zdarzeń (ostatnie {n})',
-  'audit.col.time': 'Czas',
-  'audit.col.actor': 'Aktor',
-  'audit.col.action': 'Zdarzenie',
-  'audit.col.case': 'Sprawa',
-  'audit.col.link': 'Link',
-  'audit.col.item': 'Pozycja',
-  'audit.col.ip': 'IP',
-  'audit.col.details': 'Szczegóły',
-
-  'deliver.title': 'Bezpieczna przesyłka',
-  'deliver.email.title': 'Potwierdź swój adres e-mail',
-  'deliver.email.intro': 'Przygotowano dla Ciebie pliki. Podaj adres e-mail, na który zaadresowano tę przesyłkę; wyślemy na niego jednorazowy kod.',
-  'deliver.email.label': 'Adres e-mail',
-  'deliver.email.submit': 'Wyślij mi kod',
-  'deliver.email.invalid': 'Podaj poprawny adres e-mail.',
-  'deliver.code.title': 'Wpisz kod z wiadomości',
-  'deliver.code.sent': 'Jeśli adres pasuje do tej przesyłki, właśnie wysłaliśmy na niego jednorazowy kod. Jest ważny {minutes} minut.',
-  'deliver.code.label': 'Kod jednorazowy',
-  'deliver.code.digit': 'Cyfra {n} z {total}',
-  'deliver.code.paste_hint': 'Cały kod możesz wkleić za jednym razem.',
-  'deliver.code.submit': 'Otwórz przesyłkę',
-  'deliver.code.invalid': 'Nieprawidłowy kod.',
-  'deliver.code.attempts_left': 'Pozostałe próby: {n}.',
-  'deliver.code.expired': 'Kod wygasł albo został użyty zbyt wiele razy. Poproś o nowy.',
-  'deliver.code.again': 'Zacznij od nowa',
-  'deliver.too_many': 'Zbyt wiele próśb o kod dla tego linku. Spróbuj później albo poproś nadawcę o nowy link.',
-  'deliver.mail_failed': 'Nie udało się teraz wysłać kodu. Spróbuj za chwilę albo skontaktuj się z nadawcą.',
-  'deliver.package.title': 'Twoja przesyłka',
-  'deliver.package.intro': 'Przygotowano dla: {label}. Pobierz pliki teraz – strona zamknie się wraz z końcem sesji.',
-  'deliver.package.notes': 'Notatki',
-  'deliver.package.files': 'Pliki',
-  'deliver.package.empty': 'Nadawca nie dodał jeszcze żadnej zawartości.',
-  'deliver.package.download': 'Pobierz',
-  'deliver.package.opens_left': 'Pozostałe otwarcia po tym: {n}.',
-  'deliver.package.opens_unlimited': 'Liczba otwarć nie jest ograniczona.',
-  'deliver.package.session_until': 'Ta sesja pozostaje otwarta do {date}.',
-  'deliver.package.valid_until': 'Sam link jest ważny do {date}.',
-  'deliver.package.close': 'Zakończ sesję',
-  'deliver.session_over': 'Sesja została zakończona. Podaj ponownie adres e-mail, aby otrzymać nowy kod.',
-
-  'mail.code.subject': 'Kod dostępu: {code}',
-  'mail.code.greeting': 'Dzień dobry,',
-  'mail.code.intro': 'ktoś (mamy nadzieję, że Ty) otwiera przesyłkę „{case}” przygotowaną dla Ciebie przez {brand}.',
-  'mail.code.code_line': 'Twój jednorazowy kod: {code}',
-  'mail.code.validity': 'Kod jest ważny {minutes} minut i można go użyć raz.',
-  'mail.code.ignore': 'Jeśli to nie Ty, zignoruj tę wiadomość – bez kodu nikt nie otworzy przesyłki.',
-  'mail.code.footer': 'Wiadomość wysłana automatycznie przez {brand}. Prosimy na nią nie odpowiadać.',
-
-  'upload.js.queued': 'w kolejce…',
-  'upload.js.too_large': 'za duży: limit {max}',
-  'upload.js.error': 'błąd: {msg}',
-  'upload.js.starting': 'start…',
-  'upload.js.resuming': 'wznawianie poprzedniej wysyłki…',
-  'upload.js.retrying': 'ponawianie…',
-  'upload.js.done': 'dodano',
-  'upload.js.finalising': 'wszystkie bajty wysłane, serwer kończy…',
-  'upload.js.cancelled': 'anulowano',
-  'upload.js.cancelled_local': 'anulowano (lokalnie)',
-  'upload.js.reload': 'Odśwież listę',
-};
-
 export type MessageKey = keyof typeof en;
-const DICT: Record<Lang, Record<MessageKey, string>> = { en, pl };
+export type Messages = Record<MessageKey, string>;
+
+const DICT: Record<Lang, Messages> = {
+  bg, cs, da, de, el, en, es, et, fi, fr, ga, hr, hu, it, lt, lv, mt, nl, pl, pt, ro, sk, sl, sv,
+};
+export const LANGS = Object.keys(DICT) as Lang[];
+
+/** Each language's name in itself, for the switcher: a reader looks for the word they can read. */
+export const LANG_NAMES: Record<Lang, string> = {
+  bg: 'Български', cs: 'Čeština', da: 'Dansk', de: 'Deutsch', el: 'Ελληνικά', en: 'English',
+  es: 'Español', et: 'Eesti', fi: 'Suomi', fr: 'Français', ga: 'Gaeilge', hr: 'Hrvatski',
+  hu: 'Magyar', it: 'Italiano', lt: 'Lietuvių', lv: 'Latviešu', mt: 'Malti', nl: 'Nederlands',
+  pl: 'Polski', pt: 'Português', ro: 'Română', sk: 'Slovenčina', sl: 'Slovenščina', sv: 'Svenska',
+};
+
+/** The locale dates are formatted in. Plain `en` would mean US month/day order, so English uses en-GB. */
+export function dateLocale(lang: Lang): string {
+  return lang === 'en' ? 'en-GB' : lang;
+}
 
 export type Params = Record<string, string | number>;
 
@@ -576,13 +75,14 @@ export function translator(lang: Lang): Translator {
 }
 
 export function isLang(v: unknown): v is Lang {
-  return typeof v === 'string' && (LANGS as string[]).includes(v);
+  return typeof v === 'string' && Object.hasOwn(DICT, v);
 }
 
 /**
- * Picks the UI language from Accept-Language: Polish only when it is the browser's
- * top-ranked language; anything else (German, French, unknown…) gets English, which
- * such users are far more likely to read than a secondary Polish entry deep in their list.
+ * Picks the UI language from Accept-Language: the browser's top-ranked language when we
+ * have it, English otherwise. Lower-ranked entries are deliberately ignored — someone
+ * whose first language is Japanese and who lists German fourth is still more likely to
+ * read English than German. Regions collapse onto the language (de-AT → de, pt-BR → pt).
  */
 export function negotiateLang(acceptLanguage: string | undefined): Lang {
   if (!acceptLanguage) return DEFAULT_LANG;

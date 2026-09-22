@@ -115,9 +115,16 @@ interpolations. Never build markup by concatenation — case names, item titles 
 bodies are shown to recipients. Mail subjects go through `assertSafeHeader`, because a
 case name with a newline in it would otherwise become a second header.
 
-Every i18n key must exist in both the `en` and `pl` dictionaries in `src/i18n.ts`; the
-types enforce it. Strings used by the browser uploader also have to be listed in
-`clientMessages()`, or they render as the raw key.
+Every i18n key must exist in all 24 dictionaries in `src/locales/`; `en.ts` defines the
+keys and the types refuse a dictionary that lacks one. A new string therefore needs a
+translation in every language — if you cannot write one, say so in the pull request
+rather than pasting the English in, which `test/i18n.test.ts` notices. Strings used by
+the browser uploader also have to be listed in `clientMessages()`, or they render as the
+raw key.
+
+Translations other than English and Polish have not been reviewed by native speakers. A
+pull request that fixes wording in one of them is welcome on its own — the code e-mail
+text (`mail.code.*`) matters most, since that is what a recipient reads first.
 
 Never commit an instance's configuration or branding. `.env`, any `*.env`, `branding/`
 and a logo at the repo root are ignored; `.env.example` is the only config in the repo and

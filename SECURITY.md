@@ -13,7 +13,7 @@ published advisory with a CVE once a fix is out.
 
 Useful things to include, as far as you have them:
 
-- the version (it is in the page footer, e.g. `v0.1.0`), the storage backend (local or S3)
+- the version (it is in the page footer, e.g. `v0.3.0`), the storage backend (local or S3)
   and the mail driver (`log`, `smtp`, `graph`, `ses`);
 - whether the instance runs behind a reverse proxy, and what `TRUST_PROXY` is set to;
 - what an attacker gains — opening a delivery without the address or the code, reading
@@ -30,7 +30,8 @@ There is no bug bounty.
 
 | Version | Supported |
 | --- | --- |
-| 0.1.x | yes |
+| 0.3.x | yes |
+| 0.2.x and older | no — upgrade, the upgrade path is a redeploy |
 
 The project is pre-1.0 and fixes land on `main`. There are no backport branches: a
 security fix ships in the next release, and the supported way to take it is to redeploy.

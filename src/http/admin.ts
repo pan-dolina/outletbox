@@ -374,7 +374,7 @@ export function adminRouter(ctx: AppContext): Router {
     try {
       const expiresRaw = field(req, 'expires_at').trim();
       const expiresAt = expiresRaw ? new Date(expiresRaw.endsWith('Z') ? expiresRaw : `${expiresRaw}Z`) : null;
-      if (expiresAt && Number.isNaN(expiresAt.getTime())) throw new Error(req.lang === 'pl' ? 'Nieprawidłowa data ważności' : 'Invalid expiry date');
+      if (expiresAt && Number.isNaN(expiresAt.getTime())) throw new Error(t(req.lang, 'error.invalid_expiry'));
       const maxOpensRaw = field(req, 'max_opens').trim();
       created = createLink(ctx.db, ctx.cfg, {
         caseId: id,

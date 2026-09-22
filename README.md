@@ -20,8 +20,10 @@ drive and not a sharing tool: no public links, no previews, no self-registration
   sends nothing and is the default.
 - **Deployment:** one container + one volume; optional MinIO profile for S3 testing.
 - **Admin 2FA:** TOTP (RFC 6238) with recovery codes, optionally enforced for every admin.
-- **UI languages:** English and Polish, for the panel, the recipient pages and the e-mails.
-  Each recipient is addressed in the language chosen when they were added.
+- **UI languages:** the 24 official languages of the European Union, for the panel, the
+  recipient pages and the e-mails. Each recipient is addressed in the language chosen when
+  they were added; the panel follows the browser's primary language when it is one of the
+  24 and falls back to English otherwise.
 - **Branding:** name, logo and colours apply to the panel, the recipient pages *and* the
   code e-mail, so the message and the page asking for the code look like one thing. The
   logo is embedded in the message itself, except on SES, which links it.
@@ -423,7 +425,8 @@ A single-process Express + SQLite monolith; storage and mail are plug-ins.
 ```
 src/
   config.ts            environment variables → Config (parseSize, mail, branding, …)
-  i18n.ts              en/pl dictionaries, Accept-Language negotiation, placeholders
+  i18n.ts              language list, Accept-Language negotiation, placeholders
+  locales/             one dictionary per language; en.ts defines the keys
   db.ts                node:sqlite, migrations from migrations/*.sql, transaction()
   crypto.ts            ids, tokens, access codes, sha256, scrypt, e-mail normalisation
   totp.ts              RFC 6238 TOTP, base32, recovery codes
@@ -508,8 +511,11 @@ Dependabot keeps npm/actions/docker up to date.
   recipient opens the package. The natural hook is the `access.granted` audit event.
 - SHA-256 is computed for streaming uploads; for tus it could be added after finalisation.
 - One administrator role; no SSO/WebAuthn (TOTP is available), no permission levels.
-- Only English and Polish strings exist; adding a language means one more dictionary in
-  `src/i18n.ts` (the type system enforces that every key is translated).
+- English and Polish are maintained by people who read them. The other 22 dictionaries
+  were translated without review by a native speaker; corrections are welcome and are a
+  one-file change in `src/locales/`. Adding a language means one more dictionary there
+  plus an entry in `src/i18n.ts` — the types refuse a missing key, and
+  `test/i18n.test.ts` refuses a dropped `{placeholder}`.
 
 ---
 

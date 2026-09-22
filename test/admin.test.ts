@@ -127,7 +127,7 @@ describe('recipient links', () => {
     const id = await newCase('Language pick');
     // The form starts on the language the administrator is reading the panel in.
     const form = await (await fetch(`${app.base}/admin/cases/${id}`, { headers: { cookie: session.cookie, 'accept-language': 'pl-PL,pl' } })).text();
-    expect(form).toContain('<option value="pl" selected>');
+    expect(form).toContain('<option value="pl" lang="pl" selected>Polski</option>');
 
     await adminPost(app, session, `/admin/cases/${id}/links`, { label: 'Jan', email: RECIPIENT, lang: 'pl' });
     const links = listLinksForCase(app.ctx.db, id);

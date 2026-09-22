@@ -90,9 +90,11 @@ describe('logging', () => {
 });
 
 describe('language negotiation', () => {
-  it('uses Polish only when it is the first choice', () => {
+  it('uses the browser\'s first choice when we have it, and only the first', () => {
     expect(negotiateLang('pl-PL,pl;q=0.9,en;q=0.8')).toBe('pl');
-    expect(negotiateLang('de-DE,de;q=0.9,pl;q=0.8')).toBe('en');
+    expect(negotiateLang('de-DE,de;q=0.9,pl;q=0.8')).toBe('de');
+    expect(negotiateLang('pt-BR')).toBe('pt');
+    expect(negotiateLang('ja,de;q=0.8')).toBe('en');
     expect(negotiateLang('en-GB')).toBe('en');
     expect(negotiateLang(undefined)).toBe('en');
     expect(negotiateLang('xx')).toBe('en');
