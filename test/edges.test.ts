@@ -215,3 +215,37 @@ describe('failure paths', () => {
     expect(res.body).not.toContain('relay refused');
   });
 });
+
+describe('the project mark in the top bar', () => {
+  it('is served as a PNG with a real alpha channel', async () => {
+    const res = await fetch(`${app.base}/static/outletbox-mark.png`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('image/png');
+    const png = Buffer.from(await res.arrayBuffer());
+
+    // IHDR: 8-byte signature, 4-byte length, "IHDR", width, height, bit depth,
+    // then the colour type. 6 = truecolour with alpha; 2 would mean the source
+    // logo went in without being keyed out, and the mark would sit on a white
+    // rectangle in the dark top bar.
+    expect(png.subarray(0, 8)).toEqual(Buffer.from('89504e470d0a1a0a', 'hex'));
+    expect(png.subarray(12, 16).toString('ascii')).toBe('IHDR');
+    expect(png[25]).toBe(6);
+  });
+
+  it('ends the top bar on public, login and admin pages alike', async () => {
+    const link = app.mkLink(app.mkCase('Mark on every page').id);
+    const pages: Array<[string, string]> = [
+      ['recipient', await (await fetch(`${app.base}${pathOf(link.url)}`)).text()],
+      ['login', await (await fetch(`${app.base}/admin/login`)).text()],
+      ['panel', await (await fetch(`${app.base}/admin`, { headers: { cookie: session.cookie } })).text()],
+    ];
+
+    for (const [name, body] of pages) {
+      const mark = /<img class="project-mark" src="\/static\/outletbox-mark\.png\?v=[0-9a-f]+"/.exec(body);
+      expect(mark, `${name}: the mark is missing or not cache-busted`).not.toBeNull();
+      // The operator's branding owns the left-hand side; ours comes after it.
+      expect(body.indexOf('class="brand"'), name).toBeLessThan(mark!.index);
+      expect(body, name).toContain('alt="outletbox"');
+    }
+  });
+});

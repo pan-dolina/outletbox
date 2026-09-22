@@ -96,7 +96,10 @@ ${b.logoPath ? html`<link rel="icon" href="/brand/logo">` : ''}
 <header class="topbar">
   <div class="topbar-inner">
     <a class="brand" href="${opts.nav ? '/admin' : '/'}">${b.logoPath ? html`<img class="brand-logo" src="/brand/logo" alt="${b.name}">` : b.name}</a>
-    ${opts.nav ?? ''}
+    <div class="topbar-right">
+      ${opts.nav ?? ''}
+      <img class="project-mark" src="${asset('/static/outletbox-mark.png')}" alt="outletbox" title="outletbox · ${t(opts.lang, 'app.tagline')}" width="26" height="28">
+    </div>
   </div>
 </header>
 <main class="container">

@@ -102,6 +102,10 @@ pre { background: var(--code-bg); border: 1px solid var(--border); border-radius
 .topbar-inner { max-width: 1100px; margin: 0 auto; padding: .6rem 1rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .brand { color: #fff; text-decoration: none; font-weight: 700; letter-spacing: .02em; display: inline-flex; align-items: center; }
 .brand-logo { height: 32px; width: auto; max-width: 220px; display: block; }
+/* Operator branding sits on the left, the project's own mark on the right, with
+   the nav between them so the mark always ends the bar. */
+.topbar-right { display: flex; align-items: center; gap: 1rem; }
+.project-mark { height: 28px; width: auto; display: block; flex: 0 0 auto; }
 .nav { display: flex; align-items: center; gap: 1rem; }
 .nav a { color: #cfd6de; text-decoration: none; }
 .nav a:hover { color: #fff; }
@@ -200,6 +204,12 @@ table.audit td.details > span { display: inline-block; max-width: 24rem; white-s
 
 @media (max-width: 640px) {
   .topbar-inner { flex-direction: column; align-items: flex-start; }
+  /* Measured at 375px: the Polish nav is 377px wide inside a 343px content box,
+     so the last item already ran to the very edge before the mark was added. */
+  .topbar-right { flex-wrap: wrap; row-gap: .4rem; width: 100%; }
+  .nav { flex-wrap: wrap; row-gap: .4rem; }
+  /* Wrapped onto a line of its own, the mark still belongs at the far end. */
+  .project-mark { margin-left: auto; }
   table, thead, tbody, th, td, tr { display: block; }
   thead { display: none; }
   tr { border-bottom: 1px solid var(--border); padding: .4rem 0; }
