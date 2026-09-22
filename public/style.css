@@ -105,7 +105,10 @@ pre { background: var(--code-bg); border: 1px solid var(--border); border-radius
 /* Operator branding sits on the left, the project's own mark on the right, with
    the nav between them so the mark always ends the bar. */
 .topbar-right { display: flex; align-items: center; gap: 1rem; }
-.project-mark { height: 28px; width: auto; display: block; flex: 0 0 auto; }
+/* The logo is used unmodified and brings its own white background: the top bar is dark in
+   both themes and neither brand colour is readable directly on it. The rounding stops that
+   background reading as a pasted rectangle. */
+.project-mark { height: 44px; width: auto; display: block; flex: 0 0 auto; border-radius: 6px; }
 .nav { display: flex; align-items: center; gap: 1rem; }
 .nav a { color: #cfd6de; text-decoration: none; }
 .nav a:hover { color: #fff; }
@@ -209,7 +212,7 @@ table.audit td.details > span { display: inline-block; max-width: 24rem; white-s
   .topbar-right { flex-wrap: wrap; row-gap: .4rem; width: 100%; }
   .nav { flex-wrap: wrap; row-gap: .4rem; }
   /* Wrapped onto a line of its own, the mark still belongs at the far end. */
-  .project-mark { margin-left: auto; }
+  .project-mark { margin-left: auto; height: 36px; }
   table, thead, tbody, th, td, tr { display: block; }
   thead { display: none; }
   tr { border-bottom: 1px solid var(--border); padding: .4rem 0; }
