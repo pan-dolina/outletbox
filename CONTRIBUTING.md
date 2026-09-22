@@ -135,10 +135,17 @@ holds nothing but commented-out placeholders.
 - One logical change per commit. The subject line says what changes for a user or an
   operator; the body says why, and what you decided against.
 - Keep the branch rebased on `main`.
+- A change that a recipient, an administrator or an operator would notice needs an entry
+  in [CHANGELOG.md](CHANGELOG.md), in the section of the version being prepared.
 - Say in the PR what you ran and what you did not. "Tested locally" is not a test report.
 
 ## Releasing
 
-Maintainers only: bump `version` in `package.json`, commit, then push an annotated
-`vX.Y.Z` tag. The Release workflow turns the tag into a GitHub Release with generated
-notes, using the runner's token — releases do not depend on anyone's laptop.
+Maintainers only: add the version's section to `CHANGELOG.md`, bump `version` in
+`package.json`, commit, then push an annotated `vX.Y.Z` tag. The Release workflow turns
+the tag into a GitHub Release whose notes are that changelog section, using the runner's
+token — releases do not depend on anyone's laptop. It refuses a tag with no section.
+
+Fixing a published release's notes means fixing `CHANGELOG.md` on `main`: the same
+workflow rewrites the notes of every existing release whose section changed.
+`.github/scripts/release-notes.sh vX.Y.Z` prints what a release will say, locally.
