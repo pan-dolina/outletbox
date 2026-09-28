@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { boot, pathOf, RECIPIENT, Visitor, type TestApp } from './helpers.js';
 import { dateLocale, LANG_NAMES, LANGS, t, type MessageKey } from '../src/i18n.js';
@@ -7,6 +8,16 @@ let app: TestApp;
 
 beforeAll(async () => { app = await boot(); });
 afterAll(async () => { await app.close(); });
+
+describe('footer', () => {
+  it('names the product with its release, and writes the tagline in the page language', async () => {
+    const pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string };
+    const en = await (await fetch(`${app.base}/admin/login`)).text();
+    expect(en).toContain(`<footer class="footer">secure file delivery · <span class="version">outletbox v${pkg.version}</span>`);
+    const pl = await (await fetch(`${app.base}/admin/login`, { headers: { 'accept-language': 'pl' } })).text();
+    expect(pl).toContain('<footer class="footer">bezpieczne przekazywanie plików · <span class="version">outletbox v');
+  });
+});
 
 describe('dictionaries', () => {
   it('offers the 24 official EU languages, each named in itself', () => {

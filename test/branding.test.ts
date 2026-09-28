@@ -27,7 +27,8 @@ describe('branding', () => {
     const page = await (await fetch(`${app.base}${pathOf(link.url)}`)).text();
     expect(page).toContain('Acme Secure');
     expect(page).toContain('<img class="brand-logo" src="/brand/logo"');
-    expect(page).toContain('internal use only');
+    // The operator's line, then the product and its release — never the brand's version.
+    expect(page).toContain('<footer class="footer">Acme Secure · internal use only · <span class="version">outletbox v');
     expect(page).toContain('/brand/theme.css');
   });
 
