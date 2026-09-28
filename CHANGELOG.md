@@ -11,6 +11,15 @@ The section for a version is what ends up in its
 has no section here, and rewrites a published release's notes whenever its section
 changes on `main`.
 
+## [0.3.1] - 2026-09-28
+
+### Fixed
+
+- The footer names the product next to its release: "outletbox v0.3.1" rather than a
+  bare "v0.3.1" after the operator's own footer text, which made the version read as
+  the brand's. Without `BRAND_FOOTER_TEXT`, the instance name is left out when it would
+  only repeat "outletbox".
+
 ## [0.3.0] - 2026-09-22
 
 ### Added
@@ -100,6 +109,7 @@ changes on `main`.
   branding, an audit log, English and Polish.
 - Apache-2.0.
 
+[0.3.1]: https://github.com/pan-dolina/outletbox/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/pan-dolina/outletbox/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/pan-dolina/outletbox/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/pan-dolina/outletbox/compare/v0.2.0...v0.2.1
