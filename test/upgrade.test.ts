@@ -78,7 +78,7 @@ describe('upgrading an instance in place', () => {
     const dbPath = path.join(old.dir, 'outletbox.sqlite');
     const db = openDatabase(dbPath);
     try {
-      expect(migrate(db, { backupDir: migrationBackupDir(dbPath) })).toEqual(['004_shared_links.sql']);
+      expect(migrate(db, { backupDir: migrationBackupDir(dbPath) })).toEqual(['004_shared_links.sql', '005_users.sql']);
       // The next start finds nothing pending, and copies nothing.
       expect(migrate(db, { backupDir: migrationBackupDir(dbPath) })).toEqual([]);
     } finally {

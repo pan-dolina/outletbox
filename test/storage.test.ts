@@ -105,7 +105,9 @@ describe('services', () => {
     expect(updateCase(db, c.id, { status: 'closed' })!.status).toBe('closed');
     expect(() => updateCase(db, c.id, { status: 'weird' as 'open' })).toThrow(/Invalid status/);
     expect(updateCase(db, 'c_nope', { name: 'x' })).toBeNull();
-    expect(listCases(db).some((row) => row.id === c.id)).toBe(true);
+    expect(listCases(db, { id: 'a_admin', role: 'admin' }).some((row) => row.id === c.id)).toBe(true);
+    // A user sees nothing it is not assigned to.
+    expect(listCases(db, { id: 'a_nobody', role: 'user' })).toEqual([]);
   });
 
   it('validates notes and file sizes', () => {

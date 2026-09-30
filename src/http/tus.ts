@@ -7,6 +7,7 @@ import { log } from '../log.js';
 import { audit } from '../services/audit.js';
 import { getCase } from '../services/cases.js';
 import { completeUpload, failUpload, getItem, LimitError, startUpload } from '../services/items.js';
+import { canAccessCase } from '../services/users.js';
 import type { AppContext } from './context.js';
 
 export const TUS_PATH = '/admin/api/tus';
@@ -25,10 +26,14 @@ function expressReq(req: unknown): Request {
   return node as Request;
 }
 
-function adminId(req: unknown): string {
+function account(req: unknown) {
   const session = expressReq(req).session;
   if (!session) throw tusError(401, 'unauthorized', 'Administrator session required');
-  return session.admin.id;
+  return session.admin;
+}
+
+function adminId(req: unknown): string {
+  return account(req).id;
 }
 
 /**
@@ -37,7 +42,8 @@ function adminId(req: unknown): string {
  * Authorization model:
  *  - Express has already checked the admin session and the CSRF header before
  *    any of this runs (see adminRouter);
- *  - POST names the target case in the upload metadata and the case must be open;
+ *  - POST names the target case in the upload metadata; the case must be open
+ *    and one this account may work on (every later request re-checks the latter);
  *  - HEAD/PATCH/DELETE are only accepted while the item is still 'uploading',
  *    so a finished file can never be rewritten through tus;
  *  - GET is refused outright, so tus can never become a download path.
@@ -53,10 +59,11 @@ export function createTusServer(ctx: AppContext): TusServer {
 
     onIncomingRequest: async (req, uploadId) => {
       const method = expressReq(req).method;
-      adminId(req);
+      const who = account(req);
       if (method === 'POST' || method === 'OPTIONS') return;
       const item = getItem(ctx.db, uploadId);
-      if (!item) throw tusError(404, 'upload_not_found', 'Upload not found');
+      // Someone else's upload in a case this account is not on does not exist for it.
+      if (!item || !canAccessCase(ctx.db, who, item.case_id)) throw tusError(404, 'upload_not_found', 'Upload not found');
       if (item.status !== 'uploading') {
         throw tusError(410, 'upload_finished', `Upload is ${item.status} and can no longer be modified`);
       }
@@ -71,7 +78,7 @@ export function createTusServer(ctx: AppContext): TusServer {
       const caseId = upload.metadata?.caseId ?? '';
       if (!ID_RE.test(caseId)) throw tusError(400, 'case_required', 'Upload-Metadata must carry a valid caseId');
       const c = getCase(ctx.db, caseId);
-      if (!c) throw tusError(404, 'case_not_found', 'Case not found');
+      if (!c || !canAccessCase(ctx.db, account(req), c.id)) throw tusError(404, 'case_not_found', 'Case not found');
       if (c.status !== 'open') throw tusError(403, 'case_closed', 'The case is closed');
       try {
         startUpload(ctx.db, ctx.cfg, {

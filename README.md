@@ -20,7 +20,10 @@ drive and not a sharing tool: no public links, no previews, no self-registration
 - **Mail:** SMTP, Microsoft 365 (Graph, app-only OAuth), Amazon SES, or a `log` driver that
   sends nothing and is the default.
 - **Deployment:** one container + one volume; optional MinIO profile for S3 testing.
-- **Admin 2FA:** TOTP (RFC 6238) with recovery codes, optionally enforced for every admin.
+- **Accounts and roles:** administrators see every case and manage accounts; users see
+  only the cases they are assigned to. Accounts are created in the panel with a one-time
+  password that has to be replaced at the first sign-in.
+- **2FA:** TOTP (RFC 6238) with recovery codes, optionally enforced for every account.
 - **UI languages:** the 24 official languages of the European Union, for the panel, the
   recipient pages and the e-mails. Each recipient is addressed in the language chosen for
   them when they were added; the panel follows the browser's primary language when it is one of the
@@ -65,7 +68,9 @@ docker compose exec app node dist/cli.js test-mail you@example.com
 ```
 
 After the first login enable two-factor authentication in the panel (**Security**) or
-enforce it for every administrator with `ADMIN_REQUIRE_TOTP=true`.
+enforce it for every account with `ADMIN_REQUIRE_TOTP=true`. Everyone else gets an
+account from that administrator under **Users** (§3) — the CLI is only needed for the
+first one.
 
 Panel: `PUBLIC_URL/admin`. Data (the SQLite database and, with the local backend, the
 files) lives on the `outletbox-data` volume mounted at `/data`.
@@ -191,8 +196,21 @@ Design points behind that flow:
 
 | Who | Can | Cannot |
 |---|---|---|
-| **Administrator** (cookie session, optional TOTP) | create/edit/close cases; upload files and write notes; issue, rotate and revoke recipient links; add and remove the people on a link; keep address groups; set expiry and the opening cap; download and delete items; read the audit log | — |
+| **Administrator** (cookie session, optional TOTP) | everything a user can, in **every** case; keep address groups; create, disable and delete accounts, change roles, issue new passwords, remove a lost second factor; assign users to cases; read the audit log | change their own role, disable or delete themselves |
+| **User** (cookie session, optional TOTP) | in the cases they are **assigned** to: edit/close cases; upload files and write notes; issue, rotate and revoke recipient links; add and remove the people on a link (address groups included); set expiry and the opening cap; download and delete items. Create new cases (and are assigned to them) | see or open any other case — it answers `404`, exactly like one that does not exist; edit address groups; manage accounts or assignments; read the audit log |
 | **Recipient** (link + address + one-time code) | see the case name and description, read the notes, download the files of **that** case while their session lasts | open the link without the address and the code; see other cases; upload, change or delete anything; reach the panel; learn the recipient address from the page |
+
+Every account that existed before 0.5.0 is an administrator. An administrator creates
+further accounts under **Users** and picks a role; the application generates a temporary
+password (20 characters, shown once) that its owner must replace before they can do
+anything else. Assigning someone to a case happens on the case page, under **Assigned
+users**; administrators are never listed there, because they see every case. The access
+rule lives in one function (`canAccessCase` in `src/services/users.ts`) and is checked on
+every route that takes a case, link, item or upload id, including tus and the streaming
+upload API. Role changes, unassignments and disabling take effect on the account's next
+request, not at its next login. The instance always keeps at least one active
+administrator, and no one can change their own account from the list — their password
+and 2FA are on **Security**. `ADMIN_REQUIRE_TOTP` applies to every account.
 
 **One case = one set of contents = one or more links, each for one or more people.** Every
 link of a case exposes the same files and notes; each link has its own URL, expiry and
@@ -478,8 +496,8 @@ src/
   log.ts               JSON logging + redaction
   mail/                types (interface), log, smtp, graph, ses, templates
   storage/             types (interface), local, s3, limit (byte counter + hash)
-  services/            auth, cases, items (files + notes), links, access (challenges,
-                       recipient sessions), audit, cleanup
+  services/            auth, users (roles, case assignments), cases, items (files + notes),
+                       links, access (challenges, recipient sessions), audit, cleanup
   http/
     app.ts             application assembly, static assets, /lang/:lang switcher, 404/500
     brand.ts           /brand/logo, /brand/theme.css
@@ -495,8 +513,10 @@ public/                style.css, admin.js, admin-upload.js (tus client), otp.js
 
 Tables ([`migrations/`](migrations/)):
 
-- `admins`, `admin_recovery_codes`, `sessions` — as in inletbox (TOTP secret, replay guard,
-  lockout counters, pending/verified sessions)
+- `admins`, `admin_recovery_codes`, `sessions` — as in inletbox (every panel account with
+  its role admin|user, disabled_at, must_change_password, last_login_at; TOTP secret,
+  replay guard, lockout counters, pending/verified sessions)
+- `case_members` (case_id, admin_id) — which user may work on which case
 - `cases` (id, name, description, status open|closed)
 - `items` (id = storage key = tus id, case_id, kind file|note, title, body, upload_kind,
   status uploading|ready|aborted|expired|missing|deleted, declared_size, size, sha256,
@@ -560,7 +580,8 @@ Dependabot keeps npm/actions/docker up to date.
 - No delivery receipts beyond the audit log, and no notification to the sender when a
   recipient opens the package. The natural hook is the `access.granted` audit event.
 - SHA-256 is computed for streaming uploads; for tus it could be added after finalisation.
-- One administrator role; no SSO/WebAuthn (TOTP is available), no permission levels.
+- Two roles and per-case assignment; no finer permissions inside a case (e.g. read-only),
+  no SSO/WebAuthn (TOTP is available).
 - English and Polish are maintained by people who read them. The other 22 dictionaries
   were translated without review by a native speaker; corrections are welcome and are a
   one-file change in `src/locales/`. Adding a language means one more dictionary there
