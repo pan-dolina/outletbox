@@ -9,7 +9,7 @@
  */
 import readline from 'node:readline';
 import { loadConfig } from './config.js';
-import { migrate, openDatabase } from './db.js';
+import { migrate, migrationBackupDir, openDatabase } from './db.js';
 import { log, setLogLevel } from './log.js';
 import { countAdmins, createAdmin, findAdminByUsername, forceDisableTotp, MIN_PASSWORD_LENGTH, setAdminPassword } from './services/auth.js';
 import { runCleanup } from './services/cleanup.js';
@@ -57,7 +57,7 @@ async function main(argv: string[]): Promise<void> {
   setLogLevel('warn');
   const [cmd, ...rest] = argv;
   const db = openDatabase(cfg.databasePath);
-  migrate(db);
+  migrate(db, { backupDir: migrationBackupDir(cfg.databasePath) });
 
   switch (cmd) {
     case 'migrate': {

@@ -97,6 +97,29 @@ node dist/cli.js cleanup [--ttl-hours N]
 node dist/cli.js migrate
 ```
 
+### Upgrading
+
+```bash
+git fetch --tags && git checkout vX.Y.Z      # or pull the new image
+docker compose up -d --build
+```
+
+That is the whole procedure. On start-up the application applies any pending database
+migrations by itself — and **before it changes anything, it copies the database** to
+`/data/backups/before-<migration>-<timestamp>.sqlite` (a `VACUUM INTO` copy, consistent even
+while the database runs in WAL mode, checked with `PRAGMA integrity_check`, mode 0600). If
+the copy cannot be made, the migration does not run and the container stops with the reason
+in its log: an upgrade without a way back is not attempted. A start with nothing to migrate
+copies nothing, and only the five newest copies are kept. Each migration runs in a
+transaction, so a failed one leaves the database as it was.
+
+Going back to the previous release: stop the container, put the copy in place of
+`/data/outletbox.sqlite` (and delete `outletbox.sqlite-wal` / `-shm` next to it), then start
+the previous image. Uploaded files are not touched by migrations.
+
+Read the release's section in [CHANGELOG.md](CHANGELOG.md) before upgrading; anything that
+changes behaviour for administrators or recipients is listed there.
+
 ---
 
 ## 2. How a delivery works
@@ -470,7 +493,7 @@ src/
 public/                style.css, admin.js, admin-upload.js (tus client), otp.js (code boxes)
 ```
 
-Tables ([`migrations/001_init.sql`](migrations/001_init.sql)):
+Tables ([`migrations/`](migrations/)):
 
 - `admins`, `admin_recovery_codes`, `sessions` — as in inletbox (TOTP secret, replay guard,
   lockout counters, pending/verified sessions)
@@ -478,10 +501,15 @@ Tables ([`migrations/001_init.sql`](migrations/001_init.sql)):
 - `items` (id = storage key = tus id, case_id, kind file|note, title, body, upload_kind,
   status uploading|ready|aborted|expired|missing|deleted, declared_size, size, sha256,
   created_by, timestamps)
-- `links` (id, case_id, label, recipient_email, token_hash, token_hint, expires_at,
-  revoked_at, max_opens, opens_used, lang, last_used_at)
-- `challenges` (id, link_id, code_hash, flow_hash, attempts, expires_at, consumed_at, ip)
-- `access_sessions` (id_hash, link_id, csrf_token, expires_at, ip)
+- `links` (id, case_id, label, token_hash, token_hint, expires_at, revoked_at, max_opens,
+  opens_used, last_used_at) — the URL and the limits, shared by everyone on the link
+- `link_recipients` (id, link_id, email, lang, opens, last_opened_at) — the people who may
+  open it, each with their own language
+- `recipient_groups`, `recipient_group_members` (email, lang) — address groups, copied into
+  a link when used
+- `challenges` (id, link_id, recipient_id, code_hash, flow_hash, attempts, expires_at,
+  consumed_at, ip)
+- `access_sessions` (id_hash, link_id, recipient_id, csrf_token, expires_at, ip)
 - `audit_log` (ts, actor_type admin|recipient|system, actor_id, action, case_id, link_id,
   item_id, ip, details)
 

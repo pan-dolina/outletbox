@@ -36,7 +36,7 @@ These have to pass. CI runs all of them, so running them first saves a round tri
 npm run typecheck               # tsc --noEmit
 npm test                        # vitest, local SQLite backend
 npm run test:coverage           # same, with thresholds enforced (90/82/90/95)
-docker run -d -p 127.0.0.1:9000:9000 quay.io/minio/minio server /data
+docker run -d -p 127.0.0.1:9000:9000 cgr.dev/chainguard/minio server /data
 TEST_S3=1 npm test              # the same suite against S3
 docker build -t outletbox:local .
 ```

@@ -1,6 +1,6 @@
 import http from 'node:http';
 import { loadConfig } from './config.js';
-import { migrate, openDatabase } from './db.js';
+import { migrate, migrationBackupDir, openDatabase } from './db.js';
 import { createApp } from './http/app.js';
 import type { AppContext } from './http/context.js';
 import { log, setLogLevel } from './log.js';
@@ -17,7 +17,7 @@ export async function startServer(env: NodeJS.ProcessEnv = process.env, listen: 
   const cfg = loadConfig(env);
   setLogLevel(cfg.logLevel);
   const db = openDatabase(cfg.databasePath);
-  migrate(db);
+  migrate(db, { backupDir: migrationBackupDir(cfg.databasePath) });
   const storage = createStorage(cfg);
   await storage.healthCheck();
   const tusStore = storage.createTusStore({ expirationMs: cfg.incompleteUploadTtlMs });
