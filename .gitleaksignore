@@ -1,0 +1,6 @@
+# Findings reviewed and accepted as false positives. One fingerprint per line.
+#
+# The alphabet for generated temporary passwords (src/crypto.ts, 0.5.0) is 31 plain
+# letters and digits, not a key; the constant has been renamed since, but the commit
+# that introduced it stays in history, which gitleaks scans in full.
+f6a74ef3f04c271ea5b45775a0f99ed76b20fd7c:src/crypto.ts:generic-api-key:21
