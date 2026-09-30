@@ -11,6 +11,49 @@ The section for a version is what ends up in its
 has no section here, and rewrites a published release's notes whenever its section
 changes on `main`.
 
+## [0.4.0] - 2026-09-30
+
+### Added
+
+- **One link can be shared by several people.** A link now carries a list of addresses —
+  typed one per line, separated by commas or semicolons, or pasted straight from a mail
+  client ("Anna Schmidt <anna@…>; …"). Everyone on the list opens the same URL, and each
+  of them still has to type their own address and the code sent to it, so forwarding the
+  link to somebody who is not on the list gets them nowhere.
+- People can be added to an existing link, and removed from it, without the URL
+  changing. Removing someone ends their open session and invalidates a code they were
+  about to type; the others are not affected.
+- **Address groups** (new "Address groups" page in the panel): named lists such as
+  "Board" or "External auditors" that can be picked when creating a link or adding
+  people to one. A group is copied into the link at that moment — editing or deleting
+  the group later never changes who can open a link that already exists.
+- The delivery page says which address the session was opened with ("Signed in as …"),
+  and the panel shows, per person, how many times they opened the link.
+
+### Changed
+
+- **Language is set per person, not per link.** Each address can carry its own language
+  code ("anna@example.com de"); addresses without one take the language picked in the
+  form. The code e-mail is always written in the person's language. The delivery pages
+  switch to it once that person has signed in; before that they speak it only when
+  everyone on the link shares one language, and otherwise follow the browser — the page
+  must not change language according to the address typed, since that would reveal
+  whether the address was on the list.
+- **The opening limit counts the link as a whole**, whoever opened it: a link for five
+  people with a limit of 3 can be opened three times in total.
+- **`CHALLENGE_LIMIT_PER_LINK_PER_HOUR` now applies per person on a link.** For a link
+  with one recipient nothing changes; on a shared link one person asking for codes
+  repeatedly cannot lock the others out. Likewise, requesting a new code only cancels
+  the pending code of the same person.
+- The audit log names the person behind every code request, opening and download.
+
+### Upgrading
+
+- The database migration (`004_shared_links.sql`) runs on start-up and turns every
+  existing link into a link with its one recipient, keeping their language, the opening
+  count and any code or session in progress. Back up the database first; the migration
+  cannot be undone without that backup.
+
 ## [0.3.1] - 2026-09-28
 
 ### Fixed
@@ -109,6 +152,7 @@ changes on `main`.
   branding, an audit log, English and Polish.
 - Apache-2.0.
 
+[0.4.0]: https://github.com/pan-dolina/outletbox/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/pan-dolina/outletbox/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/pan-dolina/outletbox/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/pan-dolina/outletbox/compare/v0.2.1...v0.2.2
