@@ -11,6 +11,33 @@ The section for a version is what ends up in its
 has no section here, and rewrites a published release's notes whenever its section
 changes on `main`.
 
+## [0.4.1] - 2026-09-30
+
+### Added
+
+- **Upgrades back the database up by themselves.** Before a pending migration changes
+  anything, the application copies the database to
+  `DATA_DIR/backups/before-<migration>-<timestamp>.sqlite` — a `VACUUM INTO` copy, which
+  is consistent even in WAL mode (copying the `.sqlite` file alone is not), checked with
+  `PRAGMA integrity_check`. If the copy cannot be made, the migration does not run and
+  the start-up stops with the reason in the log. The five newest copies are kept; a start
+  with nothing to migrate copies nothing. README → *Upgrading* describes the procedure and
+  the way back.
+
+### Changed
+
+- The container image no longer contains `npm`/`npx`. The application and its CLI run on
+  `node` alone (`node dist/cli.js …`, as documented); the npm bundled with the base image
+  was never used and carried the vulnerabilities that made the image scan fail.
+- The optional `minio` Compose profile now uses Chainguard's MinIO image
+  (`cgr.dev/chainguard/minio`). MinIO's own images can no longer be pulled without an
+  account, so `docker compose --profile minio up` failed.
+
+### Upgrading
+
+- From 0.3.x, go straight to this release rather than 0.4.0: it takes the backup that
+  0.4.0 asked you to take by hand.
+
 ## [0.4.0] - 2026-09-30
 
 ### Added
@@ -52,7 +79,8 @@ changes on `main`.
 - The database migration (`004_shared_links.sql`) runs on start-up and turns every
   existing link into a link with its one recipient, keeping their language, the opening
   count and any code or session in progress. Back up the database first; the migration
-  cannot be undone without that backup.
+  cannot be undone without that backup. (0.4.1 takes that backup automatically — upgrade
+  straight to it.)
 
 ## [0.3.1] - 2026-09-28
 
@@ -152,6 +180,7 @@ changes on `main`.
   branding, an audit log, English and Polish.
 - Apache-2.0.
 
+[0.4.1]: https://github.com/pan-dolina/outletbox/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/pan-dolina/outletbox/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/pan-dolina/outletbox/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/pan-dolina/outletbox/compare/v0.2.2...v0.3.0
