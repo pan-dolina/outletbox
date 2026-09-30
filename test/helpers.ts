@@ -10,6 +10,7 @@ import { createAdmin } from '../src/services/auth.js';
 import { createCase } from '../src/services/cases.js';
 import { createNote } from '../src/services/items.js';
 import { createLink, type CreateLinkInput } from '../src/services/links.js';
+import type { Lang } from '../src/i18n.js';
 
 export const USE_S3 = process.env.TEST_S3 === '1';
 const S3_ENDPOINT = process.env.TEST_S3_ENDPOINT ?? 'http://127.0.0.1:9000';
@@ -41,7 +42,11 @@ export interface TestApp extends RunningServer {
   adminLogin(): Promise<AdminSession>;
   mkCase(name?: string): { id: string; name: string };
   mkNote(caseId: string, title?: string, body?: string): { id: string };
-  mkLink(caseId: string, opts?: Partial<CreateLinkInput>): { id: string; token: string; url: string };
+  /**
+   * A link for RECIPIENT in English unless told otherwise: `recipientEmail` and
+   * `lang` describe a single person, `recipients` a shared link.
+   */
+  mkLink(caseId: string, opts?: Partial<CreateLinkInput> & { recipientEmail?: string; lang?: Lang }): { id: string; token: string; url: string };
   fileOnDisk(id: string): string;
 }
 
@@ -109,7 +114,10 @@ export async function boot(env: Record<string, string> = {}): Promise<TestApp> {
       return { id: createNote(running.ctx.db, { caseId, title, body }).id };
     },
     mkLink(caseId, opts = {}) {
-      const { link, token, url } = createLink(running.ctx.db, running.ctx.cfg, { caseId, label: 'Recipient', recipientEmail: RECIPIENT, ...opts });
+      const { recipientEmail = RECIPIENT, lang = 'en', ...rest } = opts;
+      const { link, token, url } = createLink(running.ctx.db, running.ctx.cfg, {
+        caseId, label: 'Recipient', recipients: [{ email: recipientEmail, lang }], ...rest,
+      });
       return { id: link.id, token, url };
     },
     fileOnDisk: (id) => path.join(running.ctx.cfg.localStorageDir, id),

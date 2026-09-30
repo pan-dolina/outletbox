@@ -15,15 +15,19 @@ import { discardUploadData } from '../services/cleanup.js';
 import {
   completeUpload, createNote, failUpload, getItem, listItemsForCase, LimitError, markDeleted, sanitizeFilename, startUpload,
 } from '../services/items.js';
-import { createLink, getLink, listLinksForCase, revokeLink, rotateLinkToken } from '../services/links.js';
+import { requireRecipients, RecipientListError } from '../services/addresses.js';
+import { createGroup, deleteGroup, getGroup, groupMembers, listGroups, updateGroup } from '../services/groups.js';
+import {
+  addRecipients, createLink, getLink, listLinksForCase, recipientsForCase, removeRecipient, revokeLink, rotateLinkToken,
+} from '../services/links.js';
 import { StorageLimitError, StorageNotFoundError } from '../storage/index.js';
 import { otpauthUri } from '../totp.js';
-import { t, type MessageKey } from '../i18n.js';
+import { isLang, t, type Lang, type MessageKey } from '../i18n.js';
 import type { AppContext } from './context.js';
 import { SESSION_COOKIE } from './context.js';
 import { clearCookie, csrfProtect, loginLimiter, requireAdmin, sessionCookie } from './middleware.js';
 import { createTusServer, tusHandler } from './tus.js';
-import { adminNav, auditPage, casePage, casesPage, errorPage, loginPage, type AdminViewContext } from './views/admin.js';
+import { adminNav, auditPage, casePage, casesPage, errorPage, groupsPage, loginPage, type AdminViewContext } from './views/admin.js';
 import { securityPage, totpLoginPage, type SecurityPageData } from './views/security.js';
 
 function viewCtx(req: Request): AdminViewContext {
@@ -42,6 +46,17 @@ function field(req: Request, name: string): string {
 
 function validId(id: string | undefined): string | null {
   return id && ID_RE.test(id) ? id : null;
+}
+
+/** A service error in the admin's language when it carries a message key, as-is otherwise. */
+function errorText(req: Request, err: unknown): string {
+  return err instanceof RecipientListError ? t(req.lang, err.key, err.params) : (err as Error).message;
+}
+
+/** The language picked in the form for addresses that do not name one; the panel's own by default. */
+function formLang(req: Request): Lang {
+  const v = field(req, 'lang');
+  return isLang(v) ? v : req.lang;
 }
 
 /** Content-Length as a number, or null when absent/chunked. */
@@ -314,7 +329,20 @@ export function adminRouter(ctx: AppContext): Router {
   function renderCase(req: Request, res: Response, caseId: string, extra: { error?: string; ok?: string; newLink?: { label: string; url: string } } = {}, status = 200): void {
     const c = getCase(ctx.db, caseId);
     if (!c) return sendError(req, res, 'error.not_found.title', 'error.case_missing');
-    res.status(status).type('html').send(casePage(viewCtx(req), { case: c, links: listLinksForCase(ctx.db, c.id), items: listItemsForCase(ctx.db, c.id), cfg: ctx.cfg, ...extra }));
+    res.status(status).type('html').send(casePage(viewCtx(req), {
+      case: c, links: listLinksForCase(ctx.db, c.id), recipients: recipientsForCase(ctx.db, c.id), groups: listGroups(ctx.db),
+      items: listItemsForCase(ctx.db, c.id), cfg: ctx.cfg, ...extra,
+    }));
+  }
+
+  /**
+   * The addresses a form asked for: the typed list plus, when one was chosen,
+   * a group's members. The panel's script copies a chosen group into the text
+   * area and clears the choice, so the admin sees exactly who is being added;
+   * without JavaScript the server does the same merge here.
+   */
+  function recipientsFromForm(req: Request) {
+    return requireRecipients(field(req, 'recipients'), formLang(req), groupMembers(ctx.db, validId(field(req, 'group'))));
   }
 
   r.get('/cases/:id', (req, res) => {
@@ -379,19 +407,18 @@ export function adminRouter(ctx: AppContext): Router {
       created = createLink(ctx.db, ctx.cfg, {
         caseId: id,
         label: field(req, 'label'),
-        recipientEmail: field(req, 'email'),
+        recipients: recipientsFromForm(req),
         expiresAt,
         maxOpens: maxOpensRaw ? Number(maxOpensRaw) : null,
-        // Defaults to the language of the panel the administrator is using,
-        // which the form has already pre-selected for them.
-        lang: field(req, 'lang') || req.lang,
       });
     } catch (err) {
-      renderCase(req, res, id, { error: (err as Error).message }, 400);
+      renderCase(req, res, id, { error: errorText(req, err) }, 400);
       return;
     }
-    const { link, url } = created;
-    audit(ctx.db, { actorType: 'admin', actorId: req.session!.admin.id, action: 'link.create', caseId: id, linkId: link.id, ip: req.ip, details: { label: link.label, email: link.recipient_email, expires_at: link.expires_at, max_opens: link.max_opens, lang: link.lang } });
+    const { link, recipients, url } = created;
+    audit(ctx.db, { actorType: 'admin', actorId: req.session!.admin.id, action: 'link.create', caseId: id, linkId: link.id, ip: req.ip, details: {
+      label: link.label, recipients: recipients.map((r) => `${r.email} ${r.lang}`), expires_at: link.expires_at, max_opens: link.max_opens,
+    } });
     // The full URL is shown exactly once, in this response, and is not stored
     // anywhere. The application never mails it: handing the link over is the
     // administrator's job, and only the one-time code goes out by e-mail.
@@ -415,6 +442,38 @@ export function adminRouter(ctx: AppContext): Router {
     destroyAccessSessionsForLink(ctx.db, link.id);
     audit(ctx.db, { actorType: 'admin', actorId: req.session!.admin.id, action: 'link.reissue', caseId: c.id, linkId: link.id, ip: req.ip });
     renderCase(req, res, c.id, { newLink: { label: link.label, url: rotated.url } });
+  });
+
+  r.post('/links/:id/recipients', (req, res) => {
+    const id = validId(req.params.id);
+    const link = id ? getLink(ctx.db, id) : null;
+    if (!link) return sendError(req, res, 'error.not_found.title', 'error.link_missing');
+    if (link.revoked_at) return renderCase(req, res, link.case_id, { error: t(req.lang, 'links.revoked_no_changes') }, 400);
+    let added;
+    try {
+      added = addRecipients(ctx.db, link.id, recipientsFromForm(req));
+    } catch (err) {
+      renderCase(req, res, link.case_id, { error: errorText(req, err) }, 400);
+      return;
+    }
+    if (added.length) {
+      audit(ctx.db, { actorType: 'admin', actorId: req.session!.admin.id, action: 'link.recipients_add', caseId: link.case_id, linkId: link.id, ip: req.ip, details: { recipients: added.map((r) => `${r.email} ${r.lang}`) } });
+    }
+    // The URL does not change: whoever already has it can pass it on to the new people.
+    renderCase(req, res, link.case_id, { ok: t(req.lang, 'links.recipients_added', { n: added.length, label: link.label }) });
+  });
+
+  r.post('/links/:id/recipients/:rid/remove', (req, res) => {
+    const id = validId(req.params.id);
+    const link = id ? getLink(ctx.db, id) : null;
+    if (!link) return sendError(req, res, 'error.not_found.title', 'error.link_missing');
+    const rid = validId(req.params.rid);
+    const removed = rid ? removeRecipient(ctx.db, link.id, rid) : null;
+    if (removed === 'last') return renderCase(req, res, link.case_id, { error: t(req.lang, 'links.last_recipient') }, 400);
+    if (!removed) return renderCase(req, res, link.case_id, { error: t(req.lang, 'error.recipient_missing') }, 404);
+    // Their pending code and any open session went with the row.
+    audit(ctx.db, { actorType: 'admin', actorId: req.session!.admin.id, action: 'link.recipient_remove', caseId: link.case_id, linkId: link.id, ip: req.ip, details: { email: removed.email } });
+    renderCase(req, res, link.case_id, { ok: t(req.lang, 'links.recipient_removed', { email: removed.email, label: link.label }) });
   });
 
   r.post('/links/:id/revoke', (req, res) => {
@@ -463,6 +522,47 @@ export function adminRouter(ctx: AppContext): Router {
       failUpload(ctx.db, item.id, 'aborted');
     }
     res.redirect(303, `/admin/cases/${item.case_id}`);
+  });
+
+  // ---- address groups ----------------------------------------------------
+  function renderGroups(req: Request, res: Response, extra: { error?: string; ok?: string; draft?: { id: string | null; name: string; members: string } } = {}, status = 200): void {
+    res.status(status).type('html').send(groupsPage(viewCtx(req), listGroups(ctx.db), extra));
+  }
+
+  /** What the group form was trying to save, so an error does not throw the typing away. */
+  const groupDraft = (req: Request, id: string | null) => ({ id, name: field(req, 'name'), members: field(req, 'recipients') });
+
+  r.get('/groups', (req, res) => renderGroups(req, res));
+
+  r.post('/groups', (req, res) => {
+    try {
+      const g = createGroup(ctx.db, { name: field(req, 'name'), members: requireRecipients(field(req, 'recipients'), formLang(req)) });
+      audit(ctx.db, { actorType: 'admin', actorId: req.session!.admin.id, action: 'group.create', ip: req.ip, details: { group: g.id, name: g.name, members: g.members.length } });
+      renderGroups(req, res, { ok: t(req.lang, 'groups.created', { name: g.name }) });
+    } catch (err) {
+      renderGroups(req, res, { error: errorText(req, err), draft: groupDraft(req, null) }, 400);
+    }
+  });
+
+  r.post('/groups/:id', (req, res) => {
+    const id = validId(req.params.id);
+    if (!id || !getGroup(ctx.db, id)) return renderGroups(req, res, { error: t(req.lang, 'groups.missing') }, 404);
+    try {
+      const g = updateGroup(ctx.db, id, { name: field(req, 'name'), members: requireRecipients(field(req, 'recipients'), formLang(req)) })!;
+      audit(ctx.db, { actorType: 'admin', actorId: req.session!.admin.id, action: 'group.update', ip: req.ip, details: { group: g.id, name: g.name, members: g.members.length } });
+      renderGroups(req, res, { ok: t(req.lang, 'groups.saved', { name: g.name }) });
+    } catch (err) {
+      renderGroups(req, res, { error: errorText(req, err), draft: groupDraft(req, id) }, 400);
+    }
+  });
+
+  r.post('/groups/:id/delete', (req, res) => {
+    const id = validId(req.params.id);
+    const g = id ? getGroup(ctx.db, id) : null;
+    if (!g) return renderGroups(req, res, { error: t(req.lang, 'groups.missing') }, 404);
+    deleteGroup(ctx.db, g.id);
+    audit(ctx.db, { actorType: 'admin', actorId: req.session!.admin.id, action: 'group.delete', ip: req.ip, details: { group: g.id, name: g.name } });
+    renderGroups(req, res, { ok: t(req.lang, 'groups.deleted', { name: g.name }) });
   });
 
   // ---- audit -------------------------------------------------------------

@@ -4,7 +4,9 @@ import { clientMessages, dateLocale, LANG_NAMES, LANGS, translator, type Lang, t
 import type { AuditRow } from '../../services/audit.js';
 import type { Case, CaseSummary } from '../../services/cases.js';
 import type { ItemRow } from '../../services/items.js';
-import type { Link } from '../../services/links.js';
+import { formatRecipients } from '../../services/addresses.js';
+import type { Group } from '../../services/groups.js';
+import type { Link, LinkRecipient } from '../../services/links.js';
 import { linkState } from '../../services/links.js';
 import { html, jsonScript, layout, raw, type SafeHtml } from '../html.js';
 
@@ -14,6 +16,7 @@ export function adminNav(v: AdminViewContext): SafeHtml {
   const t = translator(v.lang);
   return html`<nav class="nav">
     <a href="/admin">${t('nav.cases')}</a>
+    <a href="/admin/groups">${t('nav.groups')}</a>
     <a href="/admin/audit">${t('nav.audit')}</a>
     <a href="/admin/security">${t('nav.security')}</a>
     <span class="muted">${v.username}</span>
@@ -91,11 +94,47 @@ export function casesPage(v: AdminViewContext, cases: CaseSummary[], opts: { err
 export interface CasePageData {
   case: Case;
   links: Link[];
+  /** Recipients per link id. */
+  recipients: Map<string, LinkRecipient[]>;
+  groups: Group[];
   items: ItemRow[];
   cfg: Config;
   newLink?: { label: string; url: string };
   error?: string;
   ok?: string;
+}
+
+/** An address that may wrap only before its "@": never in the middle of a name or a domain. */
+function breakableEmail(email: string): SafeHtml {
+  const at = email.lastIndexOf('@');
+  return at > 0 ? html`${email.slice(0, at)}<wbr>${email.slice(at)}` : html`${email}`;
+}
+
+/** Language picker for addresses that do not name one; starts on the panel's language. */
+function langSelect(t: Translator, current: Lang): SafeHtml {
+  return html`<label>${t('links.lang')} <select name="lang">
+    ${LANGS.map((l) => html`<option value="${l}" lang="${l}" ${l === current ? raw('selected') : ''}>${LANG_NAMES[l]}</option>`)}
+  </select></label>`;
+}
+
+/**
+ * The address list plus, when groups exist, a picker for one. `admin.js` copies
+ * a picked group into the text area and clears the picker, so what is about to
+ * be granted is visible before it is submitted; without JavaScript the server
+ * merges the group in instead. The text area is only `required` when there is
+ * no group to pick instead.
+ */
+function recipientFields(t: Translator, lang: Lang, groups: Group[]): SafeHtml {
+  return html`
+    <label class="grid-full">${t('links.recipients')}
+      <textarea name="recipients" rows="4" class="mono" ${groups.length === 0 ? raw('required') : ''} placeholder="jan.kowalski@example.com&#10;anna.schmidt@example.com de"></textarea></label>
+    <div class="grid-full muted small">${t('links.recipients_hint')}</div>
+    ${groups.length ? html`<label>${t('links.group')} <select name="group" data-group-fill>
+      <option value="">${t('links.group_none')}</option>
+      ${groups.map((g) => html`<option value="${g.id}">${g.name} (${g.members.length})</option>`)}
+    </select></label>` : ''}
+    ${langSelect(t, lang)}
+    ${groups.length ? html`<div class="grid-full muted small">${t('links.group_hint')}</div>` : ''}`;
 }
 
 function itemStatus(t: Translator, status: string): string {
@@ -116,11 +155,14 @@ export function casePage(v: AdminViewContext, d: CasePageData): string {
     lang: v.lang,
     i18n: clientMessages(v.lang),
   };
+  const groupLines = Object.fromEntries(d.groups.map((g) => [g.id, formatRecipients(g.members)]));
+  const open = c.status === 'open';
   return layout({
     lang: v.lang, title: c.name, nav: adminNav(v), path: v.path,
     scripts: ['/static/vendor/tus.min.js', '/static/admin-upload.js', '/static/admin.js'],
     body: html`
       ${jsonScript('outletbox-config', uploaderConfig)}
+      ${jsonScript('outletbox-groups', groupLines)}
       <p><a href="/admin">${t('common.back_to_cases')}</a></p>
       <section class="card">
         <div class="row space-between">
@@ -188,34 +230,47 @@ export function casePage(v: AdminViewContext, d: CasePageData): string {
         <p class="muted small">${t('links.intro')}</p>
         <p class="muted small">${t('links.handover')}</p>
         <p class="muted small">${t('links.mail_driver', { driver: d.cfg.mail.driver })}</p>
-        <details ${c.status === 'open' ? 'open' : ''}>
+        <details ${open ? 'open' : ''}>
           <summary>${t('links.generate')}</summary>
           <form method="post" action="/admin/cases/${c.id}/links" class="grid">${csrf}
             <label>${t('links.label')} <input name="label" required maxlength="200" placeholder="${t('links.label_placeholder')}"></label>
-            <label>${t('links.email')} <input name="email" type="email" required maxlength="254" placeholder="jan.kowalski@example.com"></label>
             <label>${t('links.expires')} <input name="expires_at" type="datetime-local"></label>
-            <label>${t('links.max_opens')} <input name="max_opens" type="number" min="1" step="1" placeholder="3"></label>
-            <label>${t('links.lang')} <select name="lang">
-              ${LANGS.map((l) => html`<option value="${l}" lang="${l}" ${l === v.lang ? raw('selected') : ''}>${LANG_NAMES[l]}</option>`)}
-            </select></label>
-            <div class="grid-full muted small">${t('links.max_opens_hint')}</div>
+            ${recipientFields(t, v.lang, d.groups)}
             <div class="grid-full muted small">${t('links.lang_hint')}</div>
-            <div><button class="btn btn-primary" type="submit" ${c.status !== 'open' ? 'disabled' : ''}>${t('links.submit')}</button></div>
+            <label>${t('links.max_opens')} <input name="max_opens" type="number" min="1" step="1" placeholder="3"></label>
+            <div class="grid-full muted small">${t('links.max_opens_hint')}</div>
+            <div><button class="btn btn-primary" type="submit" ${!open ? 'disabled' : ''}>${t('links.submit')}</button></div>
           </form>
         </details>
         ${d.links.length === 0 ? html`<p class="muted">${t('links.empty')}</p>` : html`
         <table>
-          <thead><tr><th>${t('links.col.recipient')}</th><th>${t('links.col.lang')}</th><th>${t('links.col.state')}</th><th>${t('links.col.expires')}</th><th>${t('links.col.opens')}</th><th>${t('links.col.last_used')}</th><th></th></tr></thead>
+          <thead><tr><th>${t('links.col.link')}</th><th>${t('links.col.recipients')}</th><th>${t('links.col.state')}</th><th>${t('links.col.expires')}</th><th>${t('links.col.opens')}</th><th>${t('links.col.last_used')}</th><th></th></tr></thead>
           <tbody>${d.links.map((l) => {
             const state = linkState(l, c);
+            const people = d.recipients.get(l.id) ?? [];
+            const editable = !l.revoked_at;
             return html`<tr>
-              <td>${l.label}<br><span class="muted small">${l.recipient_email}</span><br><span class="muted small mono">${l.token_hint}…</span></td>
-              <td><span class="badge" lang="${l.lang}">${l.lang.toUpperCase()}</span></td>
+              <td>${l.label}<br><span class="muted small mono">${l.token_hint}…</span></td>
+              <td>
+                <ul class="recipients">${people.map((r) => html`<li>
+                  <span class="mono small">${breakableEmail(r.email)}</span>
+                  <span class="badge" lang="${r.lang}">${r.lang.toUpperCase()}</span>
+                  <span class="muted small">${t('links.recipient_opens', { n: r.opens })}</span>
+                  ${editable && people.length > 1 ? html`<form method="post" action="/admin/links/${l.id}/recipients/${r.id}/remove" class="inline" data-confirm="${t('links.recipient_remove_confirm', { email: r.email, label: l.label })}">${csrf}<button class="btn btn-link small" type="submit">${t('links.recipient_remove')}</button></form>` : ''}
+                </li>`)}</ul>
+                ${editable ? html`<details class="collapsible">
+                  <summary>${t('links.add_recipients')}</summary>
+                  <form method="post" action="/admin/links/${l.id}/recipients" class="grid">${csrf}
+                    ${recipientFields(t, v.lang, d.groups)}
+                    <div><button class="btn" type="submit">${t('common.add')}</button></div>
+                  </form>
+                </details>` : ''}
+              </td>
               <td><span class="badge badge-${state}">${t(`links.state.${state}`)}</span></td>
               <td>${l.expires_at ? fmtDate(l.expires_at, v.lang) : t('common.no_expiry')}</td>
               <td>${l.max_opens != null ? t('links.opens', { used: l.opens_used, max: l.max_opens }) : t('links.opens_unlimited', { used: l.opens_used })}</td>
               <td>${fmtDate(l.last_used_at, v.lang)}</td>
-              <td class="nowrap">
+              <td class="actions">
                 ${l.revoked_at ? '' : html`
                   <form method="post" action="/admin/links/${l.id}/reissue" class="inline" data-confirm="${t('links.reissue_confirm', { label: l.label })}">${csrf}<button class="btn" type="submit">${t('links.reissue')}</button></form>
                   <form method="post" action="/admin/links/${l.id}/revoke" class="inline" data-confirm="${t('links.revoke_confirm', { label: l.label })}">${csrf}<button class="btn btn-danger" type="submit">${t('links.revoke')}</button></form>`}
@@ -223,6 +278,58 @@ export function casePage(v: AdminViewContext, d: CasePageData): string {
             </tr>`;
           })}</tbody>
         </table>`}
+      </section>`,
+  });
+}
+
+export interface GroupsPageData {
+  error?: string;
+  ok?: string;
+  /** The form that failed, refilled: `id` null for the "new group" form. */
+  draft?: { id: string | null; name: string; members: string };
+}
+
+export function groupsPage(v: AdminViewContext, groups: Group[], d: GroupsPageData = {}): string {
+  const t = translator(v.lang);
+  const csrf = html`<input type="hidden" name="_csrf" value="${v.csrfToken}">`;
+  const newDraft = d.draft && d.draft.id === null ? d.draft : null;
+  return layout({
+    lang: v.lang, title: t('groups.title'), nav: adminNav(v), path: v.path,
+    scripts: ['/static/admin.js'],
+    body: html`
+      <section class="card">
+        <h1>${t('groups.title')}</h1>
+        ${flash(d.error)}${flash(d.ok, 'ok')}
+        <p class="muted small">${t('groups.intro')}</p>
+        <details class="collapsible" ${groups.length === 0 || newDraft ? raw('open') : ''}>
+          <summary>${t('groups.new')}</summary>
+          <form method="post" action="/admin/groups" class="grid">${csrf}
+            <label class="grid-full">${t('groups.name')} <input name="name" required maxlength="200" value="${newDraft?.name ?? ''}" placeholder="${t('groups.name_placeholder')}"></label>
+            <label class="grid-full">${t('groups.members')}
+              <textarea name="recipients" rows="6" class="mono" required placeholder="jan.kowalski@example.com&#10;anna.schmidt@example.com de">${newDraft?.members ?? ''}</textarea></label>
+            <div class="grid-full muted small">${t('links.recipients_hint')}</div>
+            ${langSelect(t, v.lang)}
+            <div><button class="btn btn-primary" type="submit">${t('common.create')}</button></div>
+          </form>
+        </details>
+      </section>
+      <section class="card">
+        <h2>${t('groups.list')}</h2>
+        ${groups.length === 0 ? html`<p class="muted">${t('groups.empty')}</p>` : groups.map((g) => {
+          const draft = d.draft && d.draft.id === g.id ? d.draft : null;
+          return html`<details class="collapsible group" ${draft ? raw('open') : ''}>
+            <summary><strong>${g.name}</strong> <span class="muted small">${t('groups.count', { n: g.members.length })}</span></summary>
+            <form method="post" action="/admin/groups/${g.id}" class="grid">${csrf}
+              <label class="grid-full">${t('groups.name')} <input name="name" required maxlength="200" value="${draft?.name ?? g.name}"></label>
+              <label class="grid-full">${t('groups.members')}
+                <textarea name="recipients" rows="${Math.min(Math.max(g.members.length + 1, 3), 12)}" class="mono" required>${draft?.members ?? formatRecipients(g.members)}</textarea></label>
+              ${langSelect(t, v.lang)}
+              <div class="grid-full muted small">${t('groups.edit_hint')}</div>
+              <div><button class="btn btn-primary" type="submit">${t('common.save')}</button></div>
+            </form>
+            <form method="post" action="/admin/groups/${g.id}/delete" class="inline" data-confirm="${t('groups.delete_confirm', { name: g.name })}">${csrf}<button class="btn btn-danger" type="submit">${t('groups.delete')}</button></form>
+          </details>`;
+        })}
       </section>`,
   });
 }

@@ -16,52 +16,56 @@ import { hashPassword, newAccessCode, newCsrfToken, newId, newSessionId, normali
  */
 
 export interface Challenge {
-  id: string; link_id: string; code_hash: string; flow_hash: string; attempts: number;
+  id: string; link_id: string; recipient_id: string | null; code_hash: string; flow_hash: string; attempts: number;
   created_at: string; expires_at: string; consumed_at: string | null; ip: string | null;
 }
 
 export class ChallengeRateError extends Error {
   constructor(public readonly perHour: number) {
-    super(`too many code requests (limit ${perHour}/hour for this link)`);
+    super(`too many code requests (limit ${perHour}/hour for this recipient of the link)`);
     this.name = 'ChallengeRateError';
   }
 }
 
 export interface AccessSession {
   linkId: string;
+  /** The person on the link who opened this session; null only for sessions older than 0.4.0. */
+  recipientId: string | null;
   csrfToken: string;
   expiresAt: string;
 }
 
 /**
  * Creates a challenge and returns the clear-text code exactly once (it is never
- * stored). Any earlier pending challenge of the same link is consumed, so only
- * the newest code ever works.
+ * stored). Any earlier pending challenge of the same person on the link is
+ * consumed, so only their newest code ever works — and one recipient asking for
+ * a code never invalidates the code another recipient of a shared link is typing.
+ * The hourly limit is per person for the same reason.
  */
-export function createChallenge(db: Db, cfg: Config, input: { linkId: string; flowToken: string; ip?: string | null }): { challenge: Challenge; code: string } {
+export function createChallenge(db: Db, cfg: Config, input: { linkId: string; recipientId: string; flowToken: string; ip?: string | null }): { challenge: Challenge; code: string } {
   const code = newAccessCode();
   const ts = new Date();
   const challenge: Challenge = {
-    id: newId('ch'), link_id: input.linkId, code_hash: hashPassword(code), flow_hash: sha256Hex(input.flowToken),
+    id: newId('ch'), link_id: input.linkId, recipient_id: input.recipientId, code_hash: hashPassword(code), flow_hash: sha256Hex(input.flowToken),
     attempts: 0, created_at: ts.toISOString(), expires_at: new Date(ts.getTime() + cfg.accessCodeTtlMs).toISOString(),
     consumed_at: null, ip: input.ip ?? null,
   };
   transaction(db, () => {
     const since = new Date(Date.now() - 3600_000).toISOString();
-    const { n } = db.prepare('SELECT COUNT(*) AS n FROM challenges WHERE link_id = ? AND created_at > ?').get(input.linkId, since) as unknown as { n: number };
+    const { n } = db.prepare('SELECT COUNT(*) AS n FROM challenges WHERE recipient_id = ? AND created_at > ?').get(input.recipientId, since) as unknown as { n: number };
     if (n >= cfg.challengeLimitPerLinkPerHour) throw new ChallengeRateError(cfg.challengeLimitPerLinkPerHour);
-    db.prepare('UPDATE challenges SET consumed_at = ? WHERE link_id = ? AND consumed_at IS NULL').run(challenge.created_at, input.linkId);
+    db.prepare('UPDATE challenges SET consumed_at = ? WHERE recipient_id = ? AND consumed_at IS NULL').run(challenge.created_at, input.recipientId);
     db.prepare(
-      `INSERT INTO challenges (id, link_id, code_hash, flow_hash, attempts, created_at, expires_at, consumed_at, ip)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(challenge.id, challenge.link_id, challenge.code_hash, challenge.flow_hash, challenge.attempts,
+      `INSERT INTO challenges (id, link_id, recipient_id, code_hash, flow_hash, attempts, created_at, expires_at, consumed_at, ip)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(challenge.id, challenge.link_id, challenge.recipient_id, challenge.code_hash, challenge.flow_hash, challenge.attempts,
       challenge.created_at, challenge.expires_at, challenge.consumed_at, challenge.ip);
   });
   return { challenge, code };
 }
 
 export type VerifyResult =
-  | { status: 'ok' }
+  | { status: 'ok'; recipientId: string | null }
   | { status: 'invalid'; attemptsLeft: number }
   | { status: 'gone' };
 
@@ -81,7 +85,7 @@ export function verifyChallenge(db: Db, cfg: Config, input: { linkId: string; fl
   const code = normalizeCode(input.code);
   if (code && verifyPassword(code, row.code_hash)) {
     db.prepare('UPDATE challenges SET consumed_at = ? WHERE id = ? AND consumed_at IS NULL').run(now(), row.id);
-    return { status: 'ok' };
+    return { status: 'ok', recipientId: row.recipient_id };
   }
   const attempts = row.attempts + 1;
   if (attempts >= cfg.maxCodeAttempts) {
@@ -92,28 +96,29 @@ export function verifyChallenge(db: Db, cfg: Config, input: { linkId: string; fl
   return { status: 'invalid', attemptsLeft: cfg.maxCodeAttempts - attempts };
 }
 
-export function createAccessSession(db: Db, cfg: Config, linkId: string, ip?: string | null): { sessionId: string; session: AccessSession } {
+export function createAccessSession(db: Db, cfg: Config, linkId: string, recipientId: string | null, ip?: string | null): { sessionId: string; session: AccessSession } {
   const sessionId = newSessionId();
   const session: AccessSession = {
     linkId,
+    recipientId,
     csrfToken: newCsrfToken(),
     expiresAt: new Date(Date.now() + cfg.accessSessionTtlMs).toISOString(),
   };
   db.prepare(
-    'INSERT INTO access_sessions (id_hash, link_id, csrf_token, created_at, expires_at, ip) VALUES (?, ?, ?, ?, ?, ?)',
-  ).run(sha256Hex(sessionId), linkId, session.csrfToken, now(), session.expiresAt, ip ?? null);
+    'INSERT INTO access_sessions (id_hash, link_id, recipient_id, csrf_token, created_at, expires_at, ip) VALUES (?, ?, ?, ?, ?, ?, ?)',
+  ).run(sha256Hex(sessionId), linkId, recipientId, session.csrfToken, now(), session.expiresAt, ip ?? null);
   return { sessionId, session };
 }
 
 export function getAccessSession(db: Db, sessionId: string): AccessSession | null {
-  const row = db.prepare('SELECT link_id, csrf_token, expires_at FROM access_sessions WHERE id_hash = ?')
-    .get(sha256Hex(sessionId)) as { link_id: string; csrf_token: string; expires_at: string } | undefined;
+  const row = db.prepare('SELECT link_id, recipient_id, csrf_token, expires_at FROM access_sessions WHERE id_hash = ?')
+    .get(sha256Hex(sessionId)) as { link_id: string; recipient_id: string | null; csrf_token: string; expires_at: string } | undefined;
   if (!row) return null;
   if (row.expires_at <= now()) {
     db.prepare('DELETE FROM access_sessions WHERE id_hash = ?').run(sha256Hex(sessionId));
     return null;
   }
-  return { linkId: row.link_id, csrfToken: row.csrf_token, expiresAt: row.expires_at };
+  return { linkId: row.link_id, recipientId: row.recipient_id, csrfToken: row.csrf_token, expiresAt: row.expires_at };
 }
 
 export function destroyAccessSession(db: Db, sessionId: string): void {

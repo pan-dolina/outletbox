@@ -10,7 +10,7 @@ import { LocalStorage } from '../src/storage/local.js';
 import { StorageLimitError, StorageNotFoundError } from '../src/storage/types.js';
 import { createCase, listCases, updateCase } from '../src/services/cases.js';
 import { createNote, LimitError, markDeleted, markMissing, startUpload, completeUpload, failUpload, listItemsForRecipient } from '../src/services/items.js';
-import { createLink, emailMatches, linkState, openingsLeft, registerOpen, rotateLinkToken } from '../src/services/links.js';
+import { createLink, findRecipient, linkState, openingsLeft, registerOpen, rotateLinkToken } from '../src/services/links.js';
 
 let dir: string;
 let storage: LocalStorage;
@@ -133,17 +133,19 @@ describe('services', () => {
 
   it('validates links and counts openings', () => {
     const c = createCase(db, { name: 'Links' });
-    expect(() => createLink(db, cfg, { caseId: c.id, label: 'x', recipientEmail: 'nope' })).toThrow(/valid recipient e-mail/);
-    expect(() => createLink(db, cfg, { caseId: c.id, label: 'x', recipientEmail: 'a@b.test', maxOpens: 0 })).toThrow(/positive integer/);
-    expect(() => createLink(db, cfg, { caseId: c.id, label: 'x', recipientEmail: 'a@b.test', expiresAt: new Date(Date.now() - 1000) })).toThrow(/future/);
-    expect(() => createLink(db, 'c_missing' as unknown as typeof cfg extends never ? never : string extends string ? string : never, { caseId: 'c_missing', label: 'x', recipientEmail: 'a@b.test' } as never)).toThrow();
+    const one = (email: string) => [{ email, lang: 'en' as const }];
+    expect(() => createLink(db, cfg, { caseId: c.id, label: 'x', recipients: one('nope') })).toThrow(/recipients.invalid/);
+    expect(() => createLink(db, cfg, { caseId: c.id, label: 'x', recipients: [] })).toThrow(/recipients.none/);
+    expect(() => createLink(db, cfg, { caseId: c.id, label: 'x', recipients: one('a@b.test'), maxOpens: 0 })).toThrow(/positive integer/);
+    expect(() => createLink(db, cfg, { caseId: c.id, label: 'x', recipients: one('a@b.test'), expiresAt: new Date(Date.now() - 1000) })).toThrow(/future/);
+    expect(() => createLink(db, cfg, { caseId: 'c_missing', label: 'x', recipients: one('a@b.test') })).toThrow(/Case not found/);
 
-    const { link, url } = createLink(db, cfg, { caseId: c.id, label: '', recipientEmail: ' A@B.test ', maxOpens: 2 });
-    expect(link.recipient_email).toBe('a@b.test');
+    const { link, recipients, url } = createLink(db, cfg, { caseId: c.id, label: '', recipients: one(' A@B.test '), maxOpens: 2 });
+    expect(recipients.map((r) => r.email)).toEqual(['a@b.test']);
     expect(link.label).toBe('Recipient');
     expect(url.startsWith('https://out.example.com/d/')).toBe(true);
-    expect(emailMatches(link, 'a@B.TEST')).toBe(true);
-    expect(emailMatches(link, 'other@b.test')).toBe(false);
+    expect(findRecipient(recipients, 'a@B.TEST')?.email).toBe('a@b.test');
+    expect(findRecipient(recipients, 'other@b.test')).toBeNull();
     expect(openingsLeft(link)).toBe(2);
 
     expect(registerOpen(db, link.id)).toBe(true);

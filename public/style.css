@@ -190,6 +190,18 @@ table.audit td.details > span { display: inline-block; max-width: 24rem; white-s
 .collapsible > summary .summary-hint { font-size: .85rem; font-weight: 400; color: var(--muted); }
 .collapsible[open] > summary { margin-bottom: .8rem; }
 .collapsible > summary:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; border-radius: 4px; }
+/* Inside a table cell the disclosure is a secondary action, not a section heading. */
+td .collapsible { margin-top: .4rem; }
+td .collapsible > summary { font-size: .9rem; font-weight: 500; }
+.recipients { list-style: none; margin: 0; padding: 0; }
+.recipients li { display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .45rem; padding: .1rem 0; }
+.recipients .mono { overflow-wrap: normal; }
+/* The action buttons of a link may stack, leaving the width to the addresses. */
+td.actions { min-width: 9rem; }
+td.actions form.inline { display: inline-block; margin: 0 .25rem .3rem 0; }
+.recipients .btn-link { padding: 0; }
+.group + .group { margin-top: .6rem; }
+.group form.inline { margin-top: .6rem; }
 
 .queue { list-style: none; padding: 0; margin: 1rem 0 0; }
 .queue li { border: 1px solid var(--border); border-radius: 6px; padding: .6rem .8rem; margin-bottom: .5rem; }

@@ -11,7 +11,9 @@ import {
 } from '../services/access.js';
 import { audit } from '../services/audit.js';
 import { getItem, listItemsForRecipient } from '../services/items.js';
-import { emailMatches, openingsLeft, registerOpen, resolveToken, touchLink, type ResolvedLink } from '../services/links.js';
+import {
+  findRecipient, openingsLeft, recordRecipientOpen, registerOpen, resolveToken, sharedLang, touchLink, type ResolvedLink,
+} from '../services/links.js';
 import { StorageNotFoundError } from '../storage/index.js';
 import { sendAttachment } from './admin.js';
 import { ACCESS_COOKIE, type AppContext } from './context.js';
@@ -24,7 +26,7 @@ import { deliverCodePage, deliverEmailPage, deliverPackagePage, linkUnavailableP
  * Everything a recipient touches lives under /d/<token>:
  *
  *   GET  /d/<token>            e-mail form → code form → the delivery itself
- *   POST /d/<token>/email      the address must equal the one the link was issued for
+ *   POST /d/<token>/email      the address must be one of those the link was issued for
  *   POST /d/<token>/code       the one-time code that was mailed to that address
  *   GET  /d/<token>/files/<id> download, only with a live recipient session
  *
@@ -61,10 +63,17 @@ export function deliverRouter(ctx: AppContext): Router {
   function load(req: Request, res: Response): ResolvedLink | null {
     const token = String(req.params.token ?? '');
     const resolved = TOKEN_RE.test(token) ? resolveToken(ctx.db, token) : null;
-    // These pages speak the language the link was issued in, because that is the
-    // language the administrator knows this recipient reads. A visitor who picks
-    // one in the footer keeps it: their own choice outranks the assumption.
-    if (resolved && !req.langExplicit) req.lang = resolved.link.lang;
+    // These pages speak the recipient's language, because that is the language
+    // the administrator knows this person reads. Before anyone has signed in it
+    // is only known when everyone on the link shares one; it never follows the
+    // address typed, which would give away whether that address was on the list.
+    // A visitor who picks a language in the footer keeps it: their own choice
+    // outranks the assumption.
+    if (resolved && !req.langExplicit) {
+      const me = req.access?.linkId === resolved.link.id ? resolved.recipients.find((r) => r.id === req.access!.recipientId) : undefined;
+      const lang = me?.lang ?? sharedLang(resolved.recipients);
+      if (lang) req.lang = lang;
+    }
     if (unavailable(req, res, resolved)) return null;
     req.delivery = resolved!;
     req.deliveryToken = token;
@@ -104,6 +113,7 @@ export function deliverRouter(ctx: AppContext): Router {
         ...view,
         case: resolved.case,
         link: resolved.link,
+        recipientEmail: resolved.recipients.find((r) => r.id === req.access!.recipientId)?.email ?? null,
         items: listItemsForRecipient(ctx.db, resolved.case.id),
         opensLeft: openingsLeft(resolved.link),
         sessionExpiresAt: req.access.expiresAt,
@@ -134,18 +144,20 @@ export function deliverRouter(ctx: AppContext): Router {
     const codePage = (extra: Record<string, unknown> = {}, status = 200) =>
       res.status(status).type('html').send(deliverCodePage({ ...view, minutes, ...extra }));
 
-    if (!emailMatches(resolved.link, typed)) {
+    const recipient = findRecipient(resolved.recipients, typed);
+    if (!recipient) {
       audit(ctx.db, { actorType: 'recipient', action: 'access.email_mismatch', caseId: resolved.case.id, linkId: resolved.link.id, ip: req.ip });
       codePage();
       return;
     }
+    const who = { actorId: recipient.id, details: { email: recipient.email } };
 
     let created;
     try {
-      created = createChallenge(ctx.db, ctx.cfg, { linkId: resolved.link.id, flowToken: req.flowToken!, ip: req.ip ?? null });
+      created = createChallenge(ctx.db, ctx.cfg, { linkId: resolved.link.id, recipientId: recipient.id, flowToken: req.flowToken!, ip: req.ip ?? null });
     } catch (err) {
       if (err instanceof ChallengeRateError) {
-        audit(ctx.db, { actorType: 'recipient', action: 'access.rate_limited', caseId: resolved.case.id, linkId: resolved.link.id, ip: req.ip });
+        audit(ctx.db, { actorType: 'recipient', ...who, action: 'access.rate_limited', caseId: resolved.case.id, linkId: resolved.link.id, ip: req.ip });
         res.status(429).type('html').send(deliverEmailPage({ ...view, error: t(req.lang, 'deliver.too_many') }));
         return;
       }
@@ -153,18 +165,18 @@ export function deliverRouter(ctx: AppContext): Router {
     }
 
     // The message is written in the recipient's language, which is a property of
-    // the link, not of the browser that happens to be asking for the code.
+    // that person, not of the browser that happens to be asking for the code.
     ctx.mailer.send(accessCodeMail({
-      lang: resolved.link.lang, to: resolved.link.recipient_email,
+      lang: recipient.lang, to: recipient.email,
       brand: ctx.cfg.brand, publicUrl: ctx.cfg.publicUrl,
       inlineLogo: ctx.mailer.inlineImages ? brandLogoImage(ctx.cfg.brand) : null,
       caseName: resolved.case.name, code: created.code, ttlMinutes: minutes,
     })).then(() => {
-      audit(ctx.db, { actorType: 'recipient', action: 'access.code_sent', caseId: resolved.case.id, linkId: resolved.link.id, ip: req.ip });
+      audit(ctx.db, { actorType: 'recipient', ...who, action: 'access.code_sent', caseId: resolved.case.id, linkId: resolved.link.id, ip: req.ip });
       codePage();
     }).catch((err: unknown) => {
       log.warn('code mail failed', { linkId: resolved.link.id, err: err as Error });
-      audit(ctx.db, { actorType: 'recipient', action: 'access.code_send_failed', caseId: resolved.case.id, linkId: resolved.link.id, ip: req.ip });
+      audit(ctx.db, { actorType: 'recipient', ...who, action: 'access.code_send_failed', caseId: resolved.case.id, linkId: resolved.link.id, ip: req.ip });
       res.status(502).type('html').send(deliverEmailPage({ ...view, error: t(req.lang, 'deliver.mail_failed') }));
     }).catch(next);
   });
@@ -196,8 +208,10 @@ export function deliverRouter(ctx: AppContext): Router {
       res.status(403).type('html').send(linkUnavailablePage(req.lang, t(req.lang, 'link.unavailable.title'), t(req.lang, 'link.exhausted')));
       return;
     }
-    const { sessionId, session } = createAccessSession(ctx.db, ctx.cfg, resolved.link.id, req.ip ?? null);
-    audit(ctx.db, { actorType: 'recipient', actorId: resolved.link.id, action: 'access.granted', caseId: resolved.case.id, linkId: resolved.link.id, ip: req.ip, details: { expires_at: session.expiresAt } });
+    const recipient = resolved.recipients.find((r) => r.id === result.recipientId) ?? null;
+    if (recipient) recordRecipientOpen(ctx.db, recipient.id);
+    const { sessionId, session } = createAccessSession(ctx.db, ctx.cfg, resolved.link.id, recipient?.id ?? null, req.ip ?? null);
+    audit(ctx.db, { actorType: 'recipient', actorId: recipient?.id ?? resolved.link.id, action: 'access.granted', caseId: resolved.case.id, linkId: resolved.link.id, ip: req.ip, details: { email: recipient?.email, expires_at: session.expiresAt } });
     res.setHeader('Set-Cookie', accessCookie(ctx, sessionId, Math.floor(ctx.cfg.accessSessionTtlMs / 1000)));
     res.redirect(303, base(req));
   });
@@ -216,7 +230,7 @@ export function deliverRouter(ctx: AppContext): Router {
     if (!resolved) return;
     if (req.accessId) {
       destroyAccessSession(ctx.db, req.accessId);
-      audit(ctx.db, { actorType: 'recipient', actorId: resolved.link.id, action: 'access.closed', caseId: resolved.case.id, linkId: resolved.link.id, ip: req.ip });
+      audit(ctx.db, { actorType: 'recipient', actorId: req.access?.recipientId ?? resolved.link.id, action: 'access.closed', caseId: resolved.case.id, linkId: resolved.link.id, ip: req.ip });
     }
     res.setHeader('Set-Cookie', clearCookie(ACCESS_COOKIE));
     res.status(200).type('html').send(deliverEmailPage({
@@ -249,7 +263,8 @@ export function deliverRouter(ctx: AppContext): Router {
       }
       throw err;
     }
-    audit(ctx.db, { actorType: 'recipient', actorId: resolved.link.id, action: 'item.download', caseId: item.case_id, linkId: resolved.link.id, itemId: item.id, ip: req.ip, details: { name: item.title } });
+    const me = resolved.recipients.find((r) => r.id === req.access!.recipientId);
+    audit(ctx.db, { actorType: 'recipient', actorId: me?.id ?? resolved.link.id, action: 'item.download', caseId: item.case_id, linkId: resolved.link.id, itemId: item.id, ip: req.ip, details: { name: item.title, email: me?.email } });
     sendAttachment(res, item.title, item.size);
     try {
       await pipeline(stream, res);

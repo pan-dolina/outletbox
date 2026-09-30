@@ -5,10 +5,11 @@
 # outletbox
 
 A private, self-hosted **delivery box** for sending files to clients. An administrator
-creates a case, puts files and notes into it and issues a link for one recipient. Opening
-that link is not enough: the recipient has to type **the e-mail address the delivery was
-addressed to** and then a **one-time code sent to that address**. The number of openings
-can be capped, and everything is logged.
+creates a case, puts files and notes into it and issues a link — for one person, or one
+link shared by several. Opening that link is not enough: each recipient has to type
+**their own e-mail address, which must be one the link was issued for**, and then a
+**one-time code sent to that address**. The number of openings can be capped, and
+everything is logged.
 
 It is the mirror image of [inletbox](https://github.com/pan-dolina/inletbox), which
 collects files *from* external parties; outletbox hands them *out*. This is not a network
@@ -21,12 +22,15 @@ drive and not a sharing tool: no public links, no previews, no self-registration
 - **Deployment:** one container + one volume; optional MinIO profile for S3 testing.
 - **Admin 2FA:** TOTP (RFC 6238) with recovery codes, optionally enforced for every admin.
 - **UI languages:** the 24 official languages of the European Union, for the panel, the
-  recipient pages and the e-mails. Each recipient is addressed in the language chosen when
-  they were added; the panel follows the browser's primary language when it is one of the
+  recipient pages and the e-mails. Each recipient is addressed in the language chosen for
+  them when they were added; the panel follows the browser's primary language when it is one of the
   24 and falls back to English otherwise.
 - **Branding:** name, logo and colours apply to the panel, the recipient pages *and* the
   code e-mail, so the message and the page asking for the code look like one thing. The
   logo is embedded in the message itself, except on SES, which links it.
+- **Shared links and address groups:** one URL for a whole list of people, each unlocking
+  it with their own address and code; people can be added or removed later without the
+  URL changing. Frequently used lists can be kept as named groups.
 - **Light and dark theme:** follows `prefers-color-scheme`. No toggle, no script, no cookie.
 
 ---
@@ -102,14 +106,16 @@ node dist/cli.js migrate
   ─────                                        ─────────
   create a case
   upload files / write notes
-  add a recipient (label + e-mail + limits
-   + the language they are addressed in)
+  create a link (a name + one or more
+   e-mail addresses, typed or taken from
+   an address group, each with the language
+   the person is addressed in + limits)
   → link https://…/d/<token>                   opens the link
     (handed over by the administrator: in
      person, by chat, by their own e-mail —
      the application never sends it)
                                                types their e-mail address
-                                               ── must equal the one in the case ──
+                                               ── must be one of those on the link ──
                                                receives a 6-digit code by e-mail
                                                types the code
                                                ── one "opening" is counted ──
@@ -128,13 +134,26 @@ Design points behind that flow:
 - **The code is bound to the browser that asked for it** (a random `outletbox_flow`
   cookie). A code read out of the recipient's inbox by somebody else cannot be typed into
   a different browser.
+- **One link can serve several people.** Everyone on its list opens the same URL with their
+  own address and their own code; a code requested by one person never cancels another
+  person's, and the hourly limit on code requests is counted per person. People can be
+  added to a link, or removed from it, while the URL stays the same; removing someone ends
+  their session at once.
+- **Address groups are templates, not memberships.** Picking a group copies its addresses
+  into the link. Editing or deleting the group later does not change who can open links
+  that already exist — access is only ever granted on the link itself.
 - **One opening = one accepted code.** `max_opens` caps how many times the delivery may be
-  unlocked; downloads inside a live session are not counted, and a session that was opened
-  while an opening was still available is allowed to finish.
-- **Every recipient has their own language.** The administrator picks it when adding the
-  person — the form starts on the language the panel is being read in — and the code
-  e-mail is written in it, whatever browser the code is later requested from. The delivery
-  pages follow the same language until the visitor picks another one in the footer.
+  unlocked — in total, across everyone on the link; downloads inside a live session are not
+  counted, and a session that was opened while an opening was still available is allowed
+  to finish.
+- **Every recipient has their own language.** The administrator sets it per address
+  (`anna@example.com de`), with a default for the rest that starts on the language the
+  panel is being read in. The code e-mail is written in it, whatever browser the code is
+  later requested from. The delivery pages switch to it once the person has signed in;
+  before that they use it only if everyone on the link shares one language, and follow the
+  browser otherwise — the page never changes language according to the address typed,
+  which would reveal whether that address was on the list. A visitor who picks a language
+  in the footer keeps it.
 - **The code is typed into six boxes, one digit each.** The whole code can be pasted into
   any of them, and the form is submitted as soon as the sixth digit is there. The boxes
   are ordinary inputs posting under the same name, so the page still works with
@@ -149,12 +168,14 @@ Design points behind that flow:
 
 | Who | Can | Cannot |
 |---|---|---|
-| **Administrator** (cookie session, optional TOTP) | create/edit/close cases; upload files and write notes; issue, e-mail, rotate and revoke recipient links; set expiry and the opening cap; download and delete items; read the audit log | — |
+| **Administrator** (cookie session, optional TOTP) | create/edit/close cases; upload files and write notes; issue, rotate and revoke recipient links; add and remove the people on a link; keep address groups; set expiry and the opening cap; download and delete items; read the audit log | — |
 | **Recipient** (link + address + one-time code) | see the case name and description, read the notes, download the files of **that** case while their session lasts | open the link without the address and the code; see other cases; upload, change or delete anything; reach the panel; learn the recipient address from the page |
 
-**One case = one set of contents = many recipient links.** Every link of a case exposes the
-same files and notes, each to its own address, with its own expiry and opening cap. If two
-people must receive different files, they get two cases.
+**One case = one set of contents = one or more links, each for one or more people.** Every
+link of a case exposes the same files and notes; each link has its own URL, expiry and
+opening cap, shared by everyone on it. Give people separate links when they need
+different expiries or limits, or when revoking one of them must not affect the others. If
+two people must receive different files, they get two cases.
 
 The application cannot tell apart people who share one mailbox: whoever can read the
 recipient's e-mail can complete the challenge. If that matters, shorten the expiry, lower
@@ -178,7 +199,7 @@ contains no secrets). Sizes: `1048576`, `500MB`, `2GB`, `512KiB` (binary units).
 | `ACCESS_CODE_TTL_MINUTES` | `15` | How long a one-time code stays valid. |
 | `ACCESS_SESSION_TTL_MINUTES` | `60` | How long a recipient stays unlocked after a valid code. |
 | `MAX_CODE_ATTEMPTS` | `5` | Wrong codes before the challenge is destroyed and a new one must be requested. |
-| `CHALLENGE_LIMIT_PER_LINK_PER_HOUR` | `5` | Codes that may be requested for one link per hour (anti mail-bombing). |
+| `CHALLENGE_LIMIT_PER_LINK_PER_HOUR` | `5` | Codes that may be requested per hour by one person on a link (anti mail-bombing). |
 | `STORAGE_BACKEND` | `local` | `local` or `s3`. |
 | `LOCAL_STORAGE_DIR` | `$DATA_DIR/files` | Directory for file objects (outside any public directory; must not contain the database). |
 | `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_FORCE_PATH_STYLE`, `S3_PART_SIZE` | — | S3 backend; `S3_FORCE_PATH_STYLE=true` for MinIO; part size ≥ 5MB. |
@@ -219,7 +240,7 @@ message: the one-time code. **The delivery link is never mailed by the applicati
 administrator copies it from the panel and passes it to the recipient the way they
 normally reach them. A message that leaks therefore carries a code that is useless without
 the link, and a link that leaks is useless without the mailbox. The message is written in
-the language the link was issued in, not in the language of whoever asked for the code,
+the language set for that recipient, not in the language of whoever asked for the code,
 and it carries the instance branding.
 
 **How the logo travels depends on the driver.** With `smtp` and `graph` it is attached to
@@ -368,12 +389,13 @@ uploads) but keeps `headersTimeout` at 60 s and a 5-minute socket idle timeout (
 
 ## 8. Security
 
-- **Recipient authentication:** possession of the link + knowledge of the address it was
+- **Recipient authentication:** possession of the link + knowledge of an address it was
   issued for + control of that mailbox. The address is compared after NFKC normalisation
   and lower-casing; a mismatch produces the same page as a match. Codes are six digits from
   a CSPRNG (rejection sampling, no modulo bias), stored as scrypt hashes, valid for
   `ACCESS_CODE_TTL_MINUTES`, single use, destroyed after `MAX_CODE_ATTEMPTS` wrong tries,
-  bound to the browser that requested them, and rate-limited per link and per IP.
+  bound to the browser that requested them, and rate-limited per recipient of a link and
+  per IP.
 - **Recipient sessions:** random 256-bit id in an `HttpOnly; SameSite=Lax; Secure` cookie,
   only its SHA-256 in the database, short TTL, destroyed on revocation, on case closure and
   on request ("close the session").

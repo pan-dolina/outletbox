@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { listLinksForCase } from '../src/services/links.js';
+import { listLinksForCase, listRecipients } from '../src/services/links.js';
 import {
   adminDownload, adminPost, boot, pathOf, randomBytes, RECIPIENT, unlock, uploadFile, Visitor, type AdminSession, type TestApp,
 } from './helpers.js';
@@ -101,7 +101,7 @@ describe('cases and contents', () => {
 describe('recipient links', () => {
   it('shows the full URL exactly once and only a hint afterwards', async () => {
     const id = await newCase();
-    const created = await adminPost(app, session, `/admin/cases/${id}/links`, { label: 'Jan', email: RECIPIENT });
+    const created = await adminPost(app, session, `/admin/cases/${id}/links`, { label: 'Jan', recipients: RECIPIENT });
     const body = await created.text();
     const url = /value="(http:[^"]+\/d\/[^"]+)"/.exec(body)![1]!;
     const token = url.split('/d/')[1]!;
@@ -116,7 +116,7 @@ describe('recipient links', () => {
     const id = await newCase('Delivery without mail');
     const before = app.mailer.recent().length;
     // send_email is a leftover an old client might still post; it must do nothing.
-    const res = await adminPost(app, session, `/admin/cases/${id}/links`, { label: 'Jan', email: RECIPIENT, send_email: '1' });
+    const res = await adminPost(app, session, `/admin/cases/${id}/links`, { label: 'Jan', recipients: RECIPIENT, send_email: '1' });
     const body = await res.text();
     expect(body).toContain('/d/');
     expect(app.mailer.recent().length).toBe(before);
@@ -129,9 +129,9 @@ describe('recipient links', () => {
     const form = await (await fetch(`${app.base}/admin/cases/${id}`, { headers: { cookie: session.cookie, 'accept-language': 'pl-PL,pl' } })).text();
     expect(form).toContain('<option value="pl" lang="pl" selected>Polski</option>');
 
-    await adminPost(app, session, `/admin/cases/${id}/links`, { label: 'Jan', email: RECIPIENT, lang: 'pl' });
+    await adminPost(app, session, `/admin/cases/${id}/links`, { label: 'Jan', recipients: RECIPIENT, lang: 'pl' });
     const links = listLinksForCase(app.ctx.db, id);
-    expect(links[0]!.lang).toBe('pl');
+    expect(listRecipients(app.ctx.db, links[0]!.id).map((r) => r.lang)).toEqual(['pl']);
 
     const listed = await (await fetch(`${app.base}/admin/cases/${id}`, { headers: { cookie: session.cookie } })).text();
     expect(listed).toContain('>PL<');
@@ -139,15 +139,19 @@ describe('recipient links', () => {
 
   it('falls back to the panel language when the form does not say', async () => {
     const id = await newCase('No language field');
-    await adminPost(app, session, `/admin/cases/${id}/links`, { label: 'Jan', email: RECIPIENT });
-    expect(listLinksForCase(app.ctx.db, id)[0]!.lang).toBe('en');
+    await adminPost(app, session, `/admin/cases/${id}/links`, { label: 'Jan', recipients: RECIPIENT });
+    expect(listRecipients(app.ctx.db, listLinksForCase(app.ctx.db, id)[0]!.id)[0]!.lang).toBe('en');
   });
 
   it('rejects a link without a usable address', async () => {
     const id = await newCase();
-    const res = await adminPost(app, session, `/admin/cases/${id}/links`, { label: 'Jan', email: 'nope' });
+    const res = await adminPost(app, session, `/admin/cases/${id}/links`, { label: 'Jan', recipients: 'nope' });
     expect(res.status).toBe(400);
-    expect(await res.text()).toContain('valid recipient e-mail address');
+    expect(await res.text()).toContain('could not be read as e-mail addresses');
+    expect(listLinksForCase(app.ctx.db, id)).toHaveLength(0);
+    const empty = await adminPost(app, session, `/admin/cases/${id}/links`, { label: 'Jan', recipients: '  ' });
+    expect(empty.status).toBe(400);
+    expect(await empty.text()).toContain('Enter at least one e-mail address');
   });
 
   it('reissuing a link rotates the token, ends the session and sends nothing', async () => {
@@ -172,7 +176,7 @@ describe('recipient links', () => {
   it('refuses to create links in a closed case', async () => {
     const id = await newCase();
     await adminPost(app, session, `/admin/cases/${id}/status`, { status: 'closed' });
-    const res = await adminPost(app, session, `/admin/cases/${id}/links`, { label: 'Jan', email: RECIPIENT });
+    const res = await adminPost(app, session, `/admin/cases/${id}/links`, { label: 'Jan', recipients: RECIPIENT });
     expect(res.status).toBe(400);
     expect(await res.text()).toContain('case is closed');
   });

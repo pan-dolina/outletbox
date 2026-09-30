@@ -136,11 +136,11 @@ describe('case editing', () => {
 
   it('rejects an expiry date in the past or nonsense', async () => {
     const c = app.mkCase();
-    const past = await adminPost(app, session, `/admin/cases/${c.id}/links`, { label: 'Jan', email: RECIPIENT, expires_at: '2020-01-01T10:00' });
+    const past = await adminPost(app, session, `/admin/cases/${c.id}/links`, { label: 'Jan', recipients: RECIPIENT, expires_at: '2020-01-01T10:00' });
     expect(past.status).toBe(400);
     expect(await past.text()).toContain('Expiry must be in the future');
 
-    const nonsense = await adminPost(app, session, `/admin/cases/${c.id}/links`, { label: 'Jan', email: RECIPIENT, expires_at: 'tomorrow-ish' });
+    const nonsense = await adminPost(app, session, `/admin/cases/${c.id}/links`, { label: 'Jan', recipients: RECIPIENT, expires_at: 'tomorrow-ish' });
     expect(nonsense.status).toBe(400);
     expect(await nonsense.text()).toContain('Invalid expiry date');
   });
@@ -148,7 +148,7 @@ describe('case editing', () => {
   it('accepts a future expiry and shows it', async () => {
     const c = app.mkCase();
     const when = new Date(Date.now() + 86_400_000).toISOString().slice(0, 16);
-    const res = await adminPost(app, session, `/admin/cases/${c.id}/links`, { label: 'Jan', email: RECIPIENT, expires_at: when, max_opens: '2' });
+    const res = await adminPost(app, session, `/admin/cases/${c.id}/links`, { label: 'Jan', recipients: RECIPIENT, expires_at: when, max_opens: '2' });
     expect(res.status).toBe(200);
     const body = await res.text();
     expect(body).toContain('/d/');
@@ -160,7 +160,7 @@ describe('the panel never mails a link', () => {
   it('creating a recipient sends nothing at all', async () => {
     const send = vi.spyOn(app.ctx.mailer, 'send');
     const c = app.mkCase();
-    const res = await adminPost(app, session, `/admin/cases/${c.id}/links`, { label: 'Jan', email: RECIPIENT });
+    const res = await adminPost(app, session, `/admin/cases/${c.id}/links`, { label: 'Jan', recipients: RECIPIENT });
     expect(res.status).toBe(200);
     expect(await res.text()).toContain('/d/');
     expect(send).not.toHaveBeenCalled();

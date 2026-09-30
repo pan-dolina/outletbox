@@ -90,6 +90,8 @@ export function deliverCodePage(d: DeliverViewBase & { minutes: number; error?: 
 export interface PackagePageData extends DeliverViewBase {
   case: Case;
   link: Link;
+  /** The address this session was opened with; on a shared link it says who is being recorded. */
+  recipientEmail: string | null;
   items: RecipientItem[];
   /** Openings still available after this one, or null when unlimited. */
   opensLeft: number | null;
@@ -108,6 +110,7 @@ export function deliverPackagePage(d: PackagePageData): string {
         <h1>${d.case.name}</h1>
         ${d.case.description ? html`<p>${d.case.description}</p>` : ''}
         <p class="muted small">${t('deliver.package.intro', { label: d.link.label })}</p>
+        ${d.recipientEmail ? html`<p class="muted small">${t('deliver.package.signed_in_as', { email: d.recipientEmail })}</p>` : ''}
         <ul class="limits small">
           <li>${d.opensLeft === null ? t('deliver.package.opens_unlimited') : t('deliver.package.opens_left', { n: d.opensLeft })}</li>
           <li>${t('deliver.package.session_until', { date: fmtDate(d.sessionExpiresAt, d.lang) })}</li>
