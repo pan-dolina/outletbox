@@ -4,5 +4,5 @@ contact_links:
     url: https://github.com/pan-dolina/outletbox/security/advisories/new
     about: Never in a public issue. This opens a private report visible only to the maintainers.
   - name: Configuration and deployment
-    url: https://github.com/pan-dolina/outletbox#4-configuration
-    about: Mail drivers, reverse proxies, storage backends and every variable are documented in the README.
+    url: https://github.com/pan-dolina/outletbox/blob/main/docs/configuration.md
+    about: Mail drivers, reverse proxies, storage backends and every variable are documented in docs/.

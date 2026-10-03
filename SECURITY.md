@@ -65,7 +65,7 @@ Anything that breaks one of the guarantees the application is built on:
   that is not enough for a given case.
 - A mail outage being visible to the recipient. The error tells somebody watching a broken
   relay that the address they typed was the right one; a silent failure was judged worse,
-  and it is documented in the README.
+  and it is documented in [docs/mail.md](docs/mail.md).
 - Missing hardening headers on endpoints that serve no content.
 - Reports from automated scanners with no demonstrated impact.
 - Anything about the deployment of a particular instance rather than this code.

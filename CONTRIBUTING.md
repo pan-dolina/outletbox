@@ -65,7 +65,7 @@ plumbing. Do not add mock-driven tests just to move that number.
 
 ## Things that look like bugs and are not
 
-The README has the full architecture; these are the ones people try to "fix" first:
+[docs/architecture.md](docs/architecture.md) has the full architecture; these are the ones people try to "fix" first:
 
 - **A wrong e-mail address gets the same page as a right one**, and nothing is sent. The
   link must not become an oracle for who the delivery was addressed to. The address is
