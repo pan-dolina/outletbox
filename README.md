@@ -75,20 +75,27 @@ recipient:  opens URL → types own address → receives 6-digit code by e-mail 
 ## Quick start
 
 ```bash
-git clone https://github.com/pan-dolina/outletbox.git && cd outletbox
-cp .env.example .env              # set PUBLIC_URL and MAIL_* (MAIL_DRIVER=log sends nothing)
-docker compose up -d --build
+mkdir outletbox && cd outletbox
+curl -fsSLO https://raw.githubusercontent.com/pan-dolina/outletbox/main/docker-compose.yml
+curl -fsSL -o .env https://raw.githubusercontent.com/pan-dolina/outletbox/main/.env.example
+# edit .env: set PUBLIC_URL and MAIL_* (MAIL_DRIVER=log sends nothing)
+docker compose up -d
 docker compose exec app node dist/cli.js create-admin admin
 docker compose exec app node dist/cli.js test-mail you@example.com
 ```
+
+That runs the released image, `ghcr.io/pan-dolina/outletbox`, built by GitHub Actions for
+amd64 and arm64 and carrying a signed build provenance attestation. To build from source
+instead, clone the repository and run `docker compose up -d --build`.
 
 Open `PUBLIC_URL/admin`, sign in and turn on two-factor authentication under
 **Security**. The app listens on `127.0.0.1:3000`; put a reverse proxy in front of it for
 TLS. The settings are in [docs/reverse-proxy.md](docs/reverse-proxy.md), and setting up
 each mail driver is covered in [docs/mail.md](docs/mail.md).
 
-To upgrade, check out the new tag and run `docker compose up -d --build` again. The
-database is backed up automatically before any migration runs.
+To upgrade, set `OUTLETBOX_VERSION` in `.env` to the new release and run
+`docker compose up -d` again. The database is backed up automatically before any
+migration runs.
 
 ## Documentation
 

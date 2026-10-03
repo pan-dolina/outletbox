@@ -4,11 +4,15 @@
 
 ## Docker Compose (recommended)
 
+Only two files are needed, `docker-compose.yml` and `.env`; no checkout, no build:
+
 ```bash
-cp .env.example .env
+mkdir outletbox && cd outletbox
+curl -fsSLO https://raw.githubusercontent.com/pan-dolina/outletbox/main/docker-compose.yml
+curl -fsSL -o .env https://raw.githubusercontent.com/pan-dolina/outletbox/main/.env.example
 # set PUBLIC_URL to the address recipients will use (https://files.example.com)
 # and configure MAIL_* — with the default MAIL_DRIVER=log no code ever leaves the machine
-docker compose up -d --build
+docker compose up -d
 docker compose exec app node dist/cli.js create-admin admin      # password prompted, min. 12 characters
 docker compose exec app node dist/cli.js test-mail you@example.com
 ```
@@ -24,6 +28,23 @@ files) lives on the `outletbox-data` volume mounted at `/data`.
 There is no default password. The first administrator is created only through the CLI on
 the server (the password can also be piped:
 `echo "$PASS" | node dist/cli.js create-admin admin --password-stdin`).
+
+## The image
+
+Releases are published to the GitHub Container Registry as
+`ghcr.io/pan-dolina/outletbox:<version>` (also `:<major>.<minor>` and `:latest`), for
+`linux/amd64` and `linux/arm64`. Each one is built by `.github/workflows/image.yml` from
+its release tag, scanned with Trivy before it is pushed, and published with an SBOM and a
+signed build provenance attestation. To check that an image really was built from this
+repository:
+
+```bash
+gh attestation verify oci://ghcr.io/pan-dolina/outletbox:0.5.1 --owner pan-dolina
+```
+
+`docker-compose.yml` runs the version set in `.env` as `OUTLETBOX_VERSION`. Pin it
+there: `latest` changes whenever a release is published. `docker compose up -d --build`
+builds the checkout instead and tags the result with the same name.
 
 ## Local development
 
@@ -50,10 +71,14 @@ node dist/cli.js migrate
 
 ## Upgrading
 
+Set `OUTLETBOX_VERSION` in `.env` to the new release, then:
+
 ```bash
-git fetch --tags && git checkout vX.Y.Z      # or pull the new image
-docker compose up -d --build
+docker compose pull
+docker compose up -d
 ```
+
+(From a source checkout: `git fetch --tags && git checkout vX.Y.Z && docker compose up -d --build`.)
 
 That is the whole procedure. On start-up the application applies any pending database
 migrations by itself — and **before it changes anything, it copies the database** to
@@ -65,8 +90,8 @@ copies nothing, and only the five newest copies are kept. Each migration runs in
 transaction, so a failed one leaves the database as it was.
 
 Going back to the previous release: stop the container, put the copy in place of
-`/data/outletbox.sqlite` (and delete `outletbox.sqlite-wal` / `-shm` next to it), then start
-the previous image. Uploaded files are not touched by migrations.
+`/data/outletbox.sqlite` (and delete `outletbox.sqlite-wal` / `-shm` next to it), then set
+`OUTLETBOX_VERSION` back to the previous release and start it. Uploaded files are not touched by migrations.
 
 Read the release's section in [CHANGELOG.md](../CHANGELOG.md) before upgrading; anything that
 changes behaviour for administrators or recipients is listed there.
