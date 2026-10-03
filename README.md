@@ -31,6 +31,17 @@ admin:      case → files + notes → link for anna@example.com → hands over 
 recipient:  opens URL → types own address → receives 6-digit code by e-mail → downloads
 ```
 
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/code.png" alt="The recipient types the six-digit code sent to their e-mail address"></td>
+    <td width="50%"><img src="docs/images/delivery.png" alt="The unlocked delivery: notes and a list of files with Download buttons"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>1. The recipient types the code sent to their address.</sub></td>
+    <td align="center"><sub>2. The delivery opens: notes, files, how many openings are left.</sub></td>
+  </tr>
+</table>
+
 ## Why outletbox
 
 - **A leaked link is not a leak.** Opening a delivery needs the link, an address it was
