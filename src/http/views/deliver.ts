@@ -3,8 +3,7 @@ import { translator, type Lang } from '../../i18n.js';
 import type { Case } from '../../services/cases.js';
 import type { RecipientItem } from '../../services/items.js';
 import type { Link } from '../../services/links.js';
-import { html, layout, raw, type SafeHtml } from '../html.js';
-import { fmtDate } from './admin.js';
+import { fmtDate, html, layout, raw, tHtml, type SafeHtml } from '../html.js';
 
 export interface DeliverViewBase {
   lang: Lang;
@@ -113,8 +112,8 @@ export function deliverPackagePage(d: PackagePageData): string {
         ${d.recipientEmail ? html`<p class="muted small">${t('deliver.package.signed_in_as', { email: d.recipientEmail })}</p>` : ''}
         <ul class="limits small">
           <li>${d.opensLeft === null ? t('deliver.package.opens_unlimited') : t('deliver.package.opens_left', { n: d.opensLeft })}</li>
-          <li>${t('deliver.package.session_until', { date: fmtDate(d.sessionExpiresAt, d.lang) })}</li>
-          ${d.link.expires_at ? html`<li>${t('deliver.package.valid_until', { date: fmtDate(d.link.expires_at, d.lang) })}</li>` : ''}
+          <li>${tHtml(d.lang, 'deliver.package.session_until', { date: fmtDate(d.sessionExpiresAt, d.lang) })}</li>
+          ${d.link.expires_at ? html`<li>${tHtml(d.lang, 'deliver.package.valid_until', { date: fmtDate(d.link.expires_at, d.lang) })}</li>` : ''}
         </ul>
       </section>
 
