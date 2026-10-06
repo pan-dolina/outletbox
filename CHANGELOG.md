@@ -11,6 +11,22 @@ The section for a version is what ends up in its
 has no section here, and rewrites a published release's notes whenever its section
 changes on `main`.
 
+## [0.6.1] - 2026-10-06
+
+### Changed
+
+- **Times are shown in the reader's own time zone.** Every date in the panel and on the
+  delivery page (how long the link and the session stay valid, when a file was added) now
+  reads in the browser's time zone, with the zone named (`20.10.2026, 18:30 CEST`);
+  hovering over it shows the same moment in UTC, the time the logs and the audit trail
+  use. Without JavaScript the page shows UTC, as before. The code e-mail still gives UTC:
+  nothing tells the server where its reader is.
+
+### Fixed
+
+- `source-map-js` 1.2.2 (GHSA-68fv-2mgg-jv7q). It is only used by the test tooling and was
+  never part of the image; the update clears the dependency audit.
+
 ## [0.6.0] - 2026-10-06
 
 ### Added
@@ -255,6 +271,7 @@ changes on `main`.
   branding, an audit log, English and Polish.
 - Apache-2.0.
 
+[0.6.1]: https://github.com/pan-dolina/outletbox/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/pan-dolina/outletbox/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/pan-dolina/outletbox/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/pan-dolina/outletbox/compare/v0.4.1...v0.5.0
