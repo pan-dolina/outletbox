@@ -321,7 +321,7 @@ export const en = {
 
   // Accounts, roles and case assignments (0.5.0)
   'nav.users': 'Users',
-  'cases.empty_assigned': 'No cases are assigned to you yet. An administrator can assign you to one, or you can create a new one above.',
+  'cases.empty_assigned': 'No cases are assigned to you yet. A colleague working on a case, or an administrator, can assign you to it, or you can create a new one above.',
   'error.forbidden.title': 'Not allowed',
   'error.forbidden': 'This page is for administrators only.',
   'security.must_change_notice': 'Your password was issued by an administrator. Set your own password below before you continue.',
@@ -381,4 +381,11 @@ export const en = {
   'users.exists': 'An account named {username} already exists.',
   'users.invalid_username': 'A username has 2–64 characters: letters, digits and . _ @ -',
   'users.invalid_role': 'Unknown role.',
+
+  // Assignments by anyone on the case; address groups kept by their creators (0.6.0)
+  'members.not_self': 'You cannot unassign yourself. Ask someone else on this case, or an administrator.',
+  'members.none_assignable_user': 'There is no other user account to assign.',
+  'groups.owner': 'created by {username}',
+  'groups.owner_admins': 'kept by administrators',
+  'groups.not_yours': 'Only the person who created this group, or an administrator, can change it. You can still pick it for a link.',
 };

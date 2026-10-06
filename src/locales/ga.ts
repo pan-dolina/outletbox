@@ -289,7 +289,7 @@ export const ga: Messages = {
 
   // Accounts, roles and case assignments (0.5.0)
   'nav.users': 'Úsáideoirí',
-  'cases.empty_assigned': 'Níl aon chás sannta duit fós. Is féidir le riarthóir cás a shannadh duit, nó is féidir leat cás nua a chruthú thuas.',
+  'cases.empty_assigned': 'Níl aon chás sannta duit fós. Is féidir le comhghleacaí atá ag obair ar chás, nó le riarthóir, tú a shannadh dó, nó is féidir leat cás nua a chruthú thuas.',
   'error.forbidden.title': 'Níl cead',
   'error.forbidden': 'Is do riarthóirí amháin an leathanach seo.',
   'security.must_change_notice': 'Riarthóir a d’eisigh do phasfhocal. Socraigh do phasfhocal féin thíos sula leanfaidh tú ar aghaidh.',
@@ -349,4 +349,11 @@ export const ga: Messages = {
   'users.exists': 'Tá cuntas darb ainm {username} ann cheana.',
   'users.invalid_username': 'Bíonn 2–64 carachtar in ainm úsáideora: litreacha, digití agus . _ @ -',
   'users.invalid_role': 'Ról anaithnid.',
+
+  // Assignments by anyone on the case; address groups kept by their creators (0.6.0)
+  'members.not_self': 'Ní féidir leat tú féin a dhíshannadh. Iarr ar dhuine eile ar an gcás seo é, nó ar riarthóir.',
+  'members.none_assignable_user': 'Níl aon chuntas úsáideora eile le sannadh.',
+  'groups.owner': 'cruthaithe ag {username}',
+  'groups.owner_admins': 'á choinneáil ag riarthóirí',
+  'groups.not_yours': 'Ní féidir ach leis an duine a chruthaigh an grúpa seo, nó le riarthóir, é a athrú. Is féidir leat é a roghnú do nasc fós.',
 };

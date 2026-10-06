@@ -303,7 +303,7 @@ describe('upgrading a database from before shared links', () => {
         INSERT INTO challenges (id, link_id, code_hash, flow_hash, created_at, expires_at) VALUES ('ch_1', 'l_1', 'c', 'f', 't', 't');
         INSERT INTO access_sessions (id_hash, link_id, csrf_token, created_at, expires_at) VALUES ('s', 'l_1', 'x', 't', 't');`);
 
-      expect(migrate(db)).toEqual(['004_shared_links.sql', '005_users.sql']);
+      expect(migrate(db)).toEqual(['004_shared_links.sql', '005_users.sql', '006_group_owner.sql']);
       const [r] = listRecipients(db, 'l_1');
       expect(r).toMatchObject({ email: 'jan@x.test', lang: 'pl', opens: 2, last_opened_at: '2026-01-02' });
       expect(r!.id).toMatch(/^r_[0-9a-f]{16}$/);

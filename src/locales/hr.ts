@@ -289,7 +289,7 @@ export const hr: Messages = {
 
   // Accounts, roles and case assignments (0.5.0)
   'nav.users': 'Korisnici',
-  'cases.empty_assigned': 'Još vam nije dodijeljen nijedan predmet. Administrator vam ga može dodijeliti ili možete gore stvoriti novi.',
+  'cases.empty_assigned': 'Još vam nije dodijeljen nijedan predmet. Može vam ga dodijeliti kolega koji radi na predmetu ili administrator, a možete i gore stvoriti novi.',
   'error.forbidden.title': 'Nije dopušteno',
   'error.forbidden': 'Ova je stranica samo za administratore.',
   'security.must_change_notice': 'Vašu je lozinku izdao administrator. Prije nastavka postavite ispod vlastitu lozinku.',
@@ -349,4 +349,11 @@ export const hr: Messages = {
   'users.exists': 'Račun s imenom {username} već postoji.',
   'users.invalid_username': 'Korisničko ime ima 2–64 znaka: slova, znamenke te . _ @ -',
   'users.invalid_role': 'Nepoznata uloga.',
+
+  // Assignments by anyone on the case; address groups kept by their creators (0.6.0)
+  'members.not_self': 'Ne možete ukloniti sami sebe. Zamolite nekoga drugog na predmetu ili administratora.',
+  'members.none_assignable_user': 'Nema drugog korisničkog računa za dodjelu.',
+  'groups.owner': 'stvorio/la {username}',
+  'groups.owner_admins': 'održavaju administratori',
+  'groups.not_yours': 'Ovu grupu može mijenjati samo osoba koja ju je stvorila ili administrator. I dalje je možete odabrati za poveznicu.',
 };

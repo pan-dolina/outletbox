@@ -7,7 +7,8 @@ import { findAdminByUsername } from '../src/services/auth.js';
 import { getCase } from '../src/services/cases.js';
 import { getItem } from '../src/services/items.js';
 import { getLink } from '../src/services/links.js';
-import { addCaseMember, getUser, listUsers, setUserDisabled, setUserRole, UserError } from '../src/services/users.js';
+import { createGroup, getGroup, listGroups } from '../src/services/groups.js';
+import { addCaseMember, canAccessCase, deleteUser, getUser, listUsers, setUserDisabled, setUserRole, UserError } from '../src/services/users.js';
 import { ADMIN_USER, adminDownload, adminPost, boot, randomBytes, tusCreate, tusHead, uploadFile, type AdminSession, type TestApp } from './helpers.js';
 
 let app: TestApp;
@@ -120,27 +121,91 @@ describe('a user and the cases assigned to them', () => {
     const page = await (await get(s, `/admin/cases/${visible.id}`)).text();
     expect(page).toContain('Visible to Bob');
     expect(page).toContain('<span>bob</span>');
-    expect(page).not.toContain(`/admin/cases/${visible.id}/members`);
+    // Bob can bring colleagues in, but there is no button to take himself off.
+    expect(page).toContain(`action="/admin/cases/${visible.id}/members"`);
+    expect(page).not.toContain(`/admin/cases/${visible.id}/members/${bob.id}/remove`);
     const link = await adminPost(app, s, `/admin/cases/${visible.id}/links`, { label: 'For the client', recipients: 'client@example.com' });
     expect(await link.text()).toContain('/d/');
     expect((await uploadFile(app, s, visible.id, 'mine.bin', randomBytes(16))).status).toBe(201);
   });
 
-  it('cannot reach accounts, assignments or the audit log', async () => {
+  it('cannot reach accounts or the audit log', async () => {
     const carol = app.mkUser('carol');
     const c = app.mkCase('Carol works here');
     addCaseMember(app.ctx.db, c.id, carol.id);
     const s = await app.login(carol.username, carol.password);
     expect((await get(s, '/admin/users')).status).toBe(403);
     expect((await get(s, '/admin/audit')).status).toBe(403);
-    // Address groups are shared; administrators keep them.
-    expect((await get(s, '/admin/groups')).status).toBe(403);
-    expect((await adminPost(app, s, '/admin/groups', { name: 'Mine', recipients: 'x@example.com' })).status).toBe(403);
     expect((await adminPost(app, s, '/admin/users', { username: 'carols-friend', role: 'admin' })).status).toBe(403);
     expect(findAdminByUsername(app.ctx.db, 'carols-friend')).toBeNull();
     expect((await adminPost(app, s, `/admin/users/${adminId()}/disable`)).status).toBe(403);
-    expect((await adminPost(app, s, `/admin/cases/${c.id}/members/${carol.id}/remove`)).status).toBe(403);
     expect((await get(s, `/admin/cases/${c.id}`)).status).toBe(200);
+  });
+
+  it('assigns colleagues to their own cases, never elsewhere and never themselves', async () => {
+    const fiona = app.mkUser('fiona');
+    const grace = app.mkUser('grace');
+    const away = app.mkUser('away');
+    const ours = app.mkCase('Fiona and Grace');
+    const theirs = app.mkCase('Not for Fiona');
+    addCaseMember(app.ctx.db, ours.id, fiona.id);
+    const s = await app.login(fiona.username, fiona.password);
+    const g = await app.login(grace.username, grace.password);
+    expect((await get(g, `/admin/cases/${ours.id}`)).status).toBe(404);
+
+    const added = await adminPost(app, s, `/admin/cases/${ours.id}/members`, { user_id: grace.id });
+    expect(await added.text()).toContain('The account grace is now assigned to this case');
+    expect((await get(g, `/admin/cases/${ours.id}`)).status).toBe(200);
+    expect(listAudit(app.ctx.db, 50).find((r) => r.action === 'case.member_add' && r.case_id === ours.id)!.actor_id).toBe(fiona.id);
+
+    // Only active user accounts can be assigned, and a case Fiona cannot see does not exist for her.
+    setUserDisabled(app.ctx.db, adminId(), away.id, true);
+    expect((await adminPost(app, s, `/admin/cases/${ours.id}/members`, { user_id: away.id })).status).toBe(400);
+    expect((await adminPost(app, s, `/admin/cases/${ours.id}/members`, { user_id: adminId() })).status).toBe(400);
+    expect((await adminPost(app, s, `/admin/cases/${theirs.id}/members`, { user_id: grace.id })).status).toBe(404);
+    expect(canAccessCase(app.ctx.db, { id: grace.id, role: 'user' }, theirs.id)).toBe(false);
+
+    // Fiona cannot take herself off; Grace can, and she loses the case at once.
+    const self = await adminPost(app, s, `/admin/cases/${ours.id}/members/${fiona.id}/remove`);
+    expect(self.status).toBe(400);
+    expect(await self.text()).toContain('You cannot unassign yourself');
+    expect((await adminPost(app, g, `/admin/cases/${ours.id}/members/${fiona.id}/remove`)).status).toBe(200);
+    expect((await get(s, `/admin/cases/${ours.id}`)).status).toBe(404);
+  });
+
+  it('keeps address groups: anyone creates one, only its creator or an administrator changes it', async () => {
+    const hana = app.mkUser('hana');
+    const ivan = app.mkUser('ivan');
+    const kept = createGroup(app.ctx.db, { name: 'Kept by the administrators', members: [{ email: 'board@example.com', lang: 'en' }] });
+    const h = await app.login(hana.username, hana.password);
+    const i = await app.login(ivan.username, ivan.password);
+
+    const page = await (await get(h, '/admin/groups')).text();
+    expect(page).toContain('href="/admin/groups"');
+    expect(page).toContain('Kept by the administrators');
+    expect(page).toContain('kept by administrators');
+    expect(page).not.toContain(`action="/admin/groups/${kept.id}"`);
+
+    const created = await adminPost(app, h, '/admin/groups', { name: 'Hana’s auditors', recipients: 'a@example.com\nb@example.com' });
+    expect(await created.text()).toContain('created by hana');
+    const mine = listGroups(app.ctx.db).find((g) => g.name === 'Hana’s auditors')!;
+    expect(mine.created_by).toBe(hana.id);
+    expect((await adminPost(app, h, `/admin/groups/${mine.id}`, { name: 'Hana’s auditors', recipients: 'c@example.com' })).status).toBe(200);
+    expect(getGroup(app.ctx.db, mine.id)!.members.map((m) => m.email)).toEqual(['c@example.com']);
+
+    // Someone else's group: visible and usable for links, not changeable.
+    expect((await adminPost(app, i, `/admin/groups/${mine.id}`, { name: 'Taken over', recipients: 'x@example.com' })).status).toBe(403);
+    expect((await adminPost(app, i, `/admin/groups/${mine.id}/delete`)).status).toBe(403);
+    expect((await adminPost(app, h, `/admin/groups/${kept.id}/delete`)).status).toBe(403);
+    expect(getGroup(app.ctx.db, mine.id)!.name).toBe('Hana’s auditors');
+    expect(getGroup(app.ctx.db, kept.id)).not.toBeNull();
+
+    // An administrator changes any group; when the creator's account goes, the group stays with the administrators.
+    const admin = await app.adminLogin();
+    expect((await adminPost(app, admin, `/admin/groups/${mine.id}`, { name: 'Auditors', recipients: 'c@example.com' })).status).toBe(200);
+    deleteUser(app.ctx.db, adminId(), hana.id);
+    expect(getGroup(app.ctx.db, mine.id)).toMatchObject({ name: 'Auditors', created_by: null });
+    expect((await adminPost(app, i, `/admin/groups/${mine.id}/delete`)).status).toBe(403);
   });
 
   it('is assigned to the cases they create', async () => {

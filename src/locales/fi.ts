@@ -289,7 +289,7 @@ export const fi: Messages = {
 
   // Accounts, roles and case assignments (0.5.0)
   'nav.users': 'Käyttäjät',
-  'cases.empty_assigned': 'Sinulle ei ole vielä määritetty asioita. Ylläpitäjä voi määrittää sinut asiaan, tai voit luoda uuden asian yllä.',
+  'cases.empty_assigned': 'Sinulle ei ole vielä määritetty asioita. Asian parissa työskentelevä kollega tai ylläpitäjä voi määrittää sinut siihen, tai voit luoda uuden asian yllä.',
   'error.forbidden.title': 'Ei sallittu',
   'error.forbidden': 'Tämä sivu on vain ylläpitäjille.',
   'security.must_change_notice': 'Salasanasi on antanut ylläpitäjä. Aseta oma salasanasi alla ennen kuin jatkat.',
@@ -349,4 +349,11 @@ export const fi: Messages = {
   'users.exists': 'Tili nimeltä {username} on jo olemassa.',
   'users.invalid_username': 'Käyttäjätunnuksessa on 2–64 merkkiä: kirjaimia, numeroita sekä . _ @ -',
   'users.invalid_role': 'Tuntematon rooli.',
+
+  // Assignments by anyone on the case; address groups kept by their creators (0.6.0)
+  'members.not_self': 'Et voi poistaa omaa määritystäsi. Pyydä sitä joltakulta toiselta asian parissa tai ylläpitäjältä.',
+  'members.none_assignable_user': 'Muita määritettäviä käyttäjätilejä ei ole.',
+  'groups.owner': 'luonut {username}',
+  'groups.owner_admins': 'ylläpitäjien hallinnoima',
+  'groups.not_yours': 'Vain ryhmän luoja tai ylläpitäjä voi muuttaa sitä. Voit silti valita sen linkkiin.',
 };

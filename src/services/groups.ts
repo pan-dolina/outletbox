@@ -1,4 +1,5 @@
 import type { Db } from '../db.js';
+import type { Viewer } from './users.js';
 import { now, transaction } from '../db.js';
 import { newId } from '../crypto.js';
 import { MAX_RECIPIENTS, RecipientListError, type RecipientInput } from './addresses.js';
@@ -9,9 +10,24 @@ import { MAX_RECIPIENTS, RecipientListError, type RecipientInput } from './addre
  * typing addresses — adding it to a link copies the addresses there, so a later
  * change to the group never widens or narrows access to an existing link.
  */
-export interface Group { id: string; name: string; created_at: string; updated_at: string; members: RecipientInput[] }
+export interface Group {
+  id: string; name: string; created_at: string; updated_at: string; members: RecipientInput[];
+  /** The account that created it; null for groups kept by the administrators. */
+  created_by: string | null;
+  created_by_name: string | null;
+}
 
-interface GroupRow { id: string; name: string; created_at: string; updated_at: string }
+interface GroupRow { id: string; name: string; created_at: string; updated_at: string; created_by: string | null; created_by_name: string | null }
+
+const SELECT_GROUP = `SELECT g.*, a.username AS created_by_name FROM recipient_groups g LEFT JOIN admins a ON a.id = g.created_by`;
+
+/**
+ * Everyone may pick any group for a link; changing or deleting one is for the
+ * account that created it and for administrators.
+ */
+export function canEditGroup(viewer: Viewer, group: Group): boolean {
+  return viewer.role === 'admin' || group.created_by === viewer.id;
+}
 
 function validName(raw: string): string {
   const name = raw.trim();
@@ -41,17 +57,17 @@ function membersOf(db: Db, groupId: string): RecipientInput[] {
     .all(groupId) as unknown as RecipientInput[];
 }
 
-export function createGroup(db: Db, input: { name: string; members: RecipientInput[] }): Group {
+export function createGroup(db: Db, input: { name: string; members: RecipientInput[]; createdBy?: string | null }): Group {
   const name = validName(input.name);
   const members = validMembers(input.members);
   if (nameTaken(db, name, null)) throw new RecipientListError('groups.name_taken');
   const ts = now();
   const id = newId('g');
   transaction(db, () => {
-    db.prepare('INSERT INTO recipient_groups (id, name, created_at, updated_at) VALUES (?, ?, ?, ?)').run(id, name, ts, ts);
+    db.prepare('INSERT INTO recipient_groups (id, name, created_at, updated_at, created_by) VALUES (?, ?, ?, ?, ?)').run(id, name, ts, ts, input.createdBy ?? null);
     writeMembers(db, id, members);
   });
-  return { id, name, created_at: ts, updated_at: ts, members };
+  return getGroup(db, id)!;
 }
 
 export function updateGroup(db: Db, id: string, input: { name: string; members: RecipientInput[] }): Group | null {
@@ -71,12 +87,12 @@ export function deleteGroup(db: Db, id: string): boolean {
 }
 
 export function getGroup(db: Db, id: string): Group | null {
-  const row = db.prepare('SELECT * FROM recipient_groups WHERE id = ?').get(id) as GroupRow | undefined;
+  const row = db.prepare(`${SELECT_GROUP} WHERE g.id = ?`).get(id) as GroupRow | undefined;
   return row ? { ...row, members: membersOf(db, row.id) } : null;
 }
 
 export function listGroups(db: Db): Group[] {
-  const rows = db.prepare('SELECT * FROM recipient_groups ORDER BY name COLLATE NOCASE').all() as unknown as GroupRow[];
+  const rows = db.prepare(`${SELECT_GROUP} ORDER BY g.name COLLATE NOCASE`).all() as unknown as GroupRow[];
   return rows.map((row) => ({ ...row, members: membersOf(db, row.id) }));
 }
 

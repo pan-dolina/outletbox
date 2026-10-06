@@ -289,7 +289,7 @@ export const mt: Messages = {
 
   // Accounts, roles and case assignments (0.5.0)
   'nav.users': 'Utenti',
-  'cases.empty_assigned': 'Għadek ma ġejt assenjat l-ebda każ. Amministratur jista’ jassenjalek wieħed, jew tista’ toħloq wieħed ġdid hawn fuq.',
+  'cases.empty_assigned': 'Għadek ma ġejt assenjat l-ebda każ. Kollega li qed jaħdem fuq każ, jew amministratur, jista’ jassenjak għalih, jew tista’ toħloq wieħed ġdid hawn fuq.',
   'error.forbidden.title': 'Mhux permess',
   'error.forbidden': 'Din il-paġna hija għall-amministraturi biss.',
   'security.must_change_notice': 'Il-password tiegħek ħarġitha amministratur. Issettja l-password tiegħek hawn taħt qabel tkompli.',
@@ -349,4 +349,11 @@ export const mt: Messages = {
   'users.exists': 'Diġà jeżisti kont bl-isem {username}.',
   'users.invalid_username': 'Isem tal-utent għandu 2–64 karattru: ittri, numri u . _ @ -',
   'users.invalid_role': 'Rwol mhux magħruf.',
+
+  // Assignments by anyone on the case; address groups kept by their creators (0.6.0)
+  'members.not_self': 'Ma tistax tneħħi lilek innifsek. Itlob lil xi ħadd ieħor fuq dan il-każ jew lil amministratur.',
+  'members.none_assignable_user': 'M’hemmx kont ieħor tal-utent x’tassenja.',
+  'groups.owner': 'maħluq minn {username}',
+  'groups.owner_admins': 'miżmum mill-amministraturi',
+  'groups.not_yours': 'Dan il-grupp jista’ jibdlu biss min ħolqu, jew amministratur. Xorta tista’ tagħżlu għal link.',
 };

@@ -6,21 +6,29 @@
 
 | Who | Can | Cannot |
 |---|---|---|
-| **Administrator** (cookie session, optional TOTP) | everything a user can, in **every** case; keep address groups; create, disable and delete accounts, change roles, issue new passwords, remove a lost second factor; assign users to cases; read the audit log | change their own role, disable or delete themselves |
-| **User** (cookie session, optional TOTP) | in the cases they are **assigned** to: edit/close cases; upload files and write notes; issue, rotate and revoke recipient links; add and remove the people on a link (address groups included); set expiry and the opening cap; download and delete items. Create new cases (and are assigned to them) | see or open any other case — it answers `404`, exactly like one that does not exist; edit address groups; manage accounts or assignments; read the audit log |
+| **Administrator** (cookie session, optional TOTP) | everything a user can, in **every** case; change or delete any address group; create, disable and delete accounts, change roles, issue new passwords, remove a lost second factor; assign users to cases; read the audit log | change their own role, disable or delete themselves |
+| **User** (cookie session, optional TOTP) | in the cases they are **assigned** to: edit/close cases; upload files and write notes; issue, rotate and revoke recipient links; add and remove the people on a link (address groups included); set expiry and the opening cap; download and delete items; assign other users to the case and unassign them. Create new cases (and are assigned to them); create address groups and change or delete their own | see or open any other case — it answers `404`, exactly like one that does not exist; unassign themselves; change someone else's address group; manage accounts; read the audit log |
 | **Recipient** (link + address + one-time code) | see the case name and description, read the notes, download the files of **that** case while their session lasts | open the link without the address and the code; see other cases; upload, change or delete anything; reach the panel; learn the recipient address from the page |
 
 Every account that existed before 0.5.0 is an administrator. An administrator creates
 further accounts under **Users** and picks a role; the application generates a temporary
 password (20 characters, shown once) that its owner must replace before they can do
 anything else. Assigning someone to a case happens on the case page, under **Assigned
-users**; administrators are never listed there, because they see every case. The access
+users**, and anyone who works on the case can do it: assign another active user, or
+unassign one. Nobody can unassign themselves (that would lock them out of the page they
+are on), and administrators are never listed there, because they see every case. The access
 rule lives in one function (`canAccessCase` in `src/services/users.ts`) and is checked on
 every route that takes a case, link, item or upload id, including tus and the streaming
 upload API. Role changes, unassignments and disabling take effect on the account's next
 request, not at its next login. The instance always keeps at least one active
 administrator, and no one can change their own account from the list — their password
 and 2FA are on **Security**. `ADMIN_REQUIRE_TOTP` applies to every account.
+
+Address groups are shared: everyone can see every group and pick it for a link. Anyone
+can create one; it can then be changed or deleted only by the account that created it and
+by administrators. Groups from before 0.6.0, and groups whose creator's account was
+deleted, are kept by the administrators. Since a group only copies addresses into a link,
+editing one never changes who can open a link that already exists.
 
 **One case = one set of contents = one or more links, each for one or more people.** Every
 link of a case exposes the same files and notes; each link has its own URL, expiry and

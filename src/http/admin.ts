@@ -20,7 +20,7 @@ import {
   completeUpload, createNote, failUpload, getItem, listItemsForCase, LimitError, markDeleted, sanitizeFilename, startUpload,
 } from '../services/items.js';
 import { requireRecipients, RecipientListError } from '../services/addresses.js';
-import { createGroup, deleteGroup, getGroup, groupMembers, listGroups, updateGroup } from '../services/groups.js';
+import { canEditGroup, createGroup, deleteGroup, getGroup, groupMembers, listGroups, updateGroup } from '../services/groups.js';
 import {
   addRecipients, createLink, getLink, listLinksForCase, recipientsForCase, removeRecipient, revokeLink, rotateLinkToken,
 } from '../services/links.js';
@@ -277,7 +277,7 @@ export function adminRouter(ctx: AppContext): Router {
     return c && canAccessCase(ctx.db, req.session!.admin, c.id) ? c : null;
   }
 
-  /** Accounts, assignments and the audit log are the administrators' alone. */
+  /** Accounts and the audit log are the administrators' alone. */
   const adminsOnly = (req: Request, res: Response, next: NextFunction): void => {
     if (req.session!.admin.role === 'admin') return next();
     sendError(req, res, 'error.forbidden.title', 'error.forbidden', 403);
@@ -367,7 +367,7 @@ export function adminRouter(ctx: AppContext): Router {
     res.status(status).type('html').send(casePage(viewCtx(req), {
       case: c, links: listLinksForCase(ctx.db, c.id), recipients: recipientsForCase(ctx.db, c.id), groups: listGroups(ctx.db),
       items: listItemsForCase(ctx.db, c.id), cfg: ctx.cfg,
-      members: caseMembers(ctx.db, c.id), assignable: req.session!.admin.role === 'admin' ? assignableUsers(ctx.db, c.id) : [], ...extra,
+      members: caseMembers(ctx.db, c.id), assignable: assignableUsers(ctx.db, c.id), ...extra,
     }));
   }
 
@@ -570,12 +570,22 @@ export function adminRouter(ctx: AppContext): Router {
   /** What the group form was trying to save, so an error does not throw the typing away. */
   const groupDraft = (req: Request, id: string | null) => ({ id, name: field(req, 'name'), members: field(req, 'recipients') });
 
-  // Address groups are shared by everyone who issues links; administrators keep them.
-  r.get('/groups', adminsOnly, (req, res) => renderGroups(req, res));
+  // Address groups are shared by everyone who issues links. Anyone may create one;
+  // only its creator or an administrator changes or deletes it.
+  r.get('/groups', (req, res) => renderGroups(req, res));
 
-  r.post('/groups', adminsOnly, (req, res) => {
+  /** The group behind `:id` if this account may change it; otherwise the error page is sent. */
+  function editableGroup(req: Request, res: Response) {
+    const id = validId(param(req, 'id'));
+    const g = id ? getGroup(ctx.db, id) : null;
+    if (!g) { renderGroups(req, res, { error: t(req.lang, 'groups.missing') }, 404); return null; }
+    if (!canEditGroup(req.session!.admin, g)) { renderGroups(req, res, { error: t(req.lang, 'groups.not_yours') }, 403); return null; }
+    return g;
+  }
+
+  r.post('/groups', (req, res) => {
     try {
-      const g = createGroup(ctx.db, { name: field(req, 'name'), members: requireRecipients(field(req, 'recipients'), formLang(req)) });
+      const g = createGroup(ctx.db, { name: field(req, 'name'), members: requireRecipients(field(req, 'recipients'), formLang(req)), createdBy: req.session!.admin.id });
       audit(ctx.db, { actorType: 'admin', actorId: req.session!.admin.id, action: 'group.create', ip: req.ip, details: { group: g.id, name: g.name, members: g.members.length } });
       renderGroups(req, res, { ok: t(req.lang, 'groups.created', { name: g.name }) });
     } catch (err) {
@@ -583,9 +593,10 @@ export function adminRouter(ctx: AppContext): Router {
     }
   });
 
-  r.post('/groups/:id', adminsOnly, (req, res) => {
-    const id = validId(param(req, 'id'));
-    if (!id || !getGroup(ctx.db, id)) return renderGroups(req, res, { error: t(req.lang, 'groups.missing') }, 404);
+  r.post('/groups/:id', (req, res) => {
+    const existing = editableGroup(req, res);
+    if (!existing) return;
+    const id = existing.id;
     try {
       const g = updateGroup(ctx.db, id, { name: field(req, 'name'), members: requireRecipients(field(req, 'recipients'), formLang(req)) })!;
       audit(ctx.db, { actorType: 'admin', actorId: req.session!.admin.id, action: 'group.update', ip: req.ip, details: { group: g.id, name: g.name, members: g.members.length } });
@@ -595,17 +606,18 @@ export function adminRouter(ctx: AppContext): Router {
     }
   });
 
-  r.post('/groups/:id/delete', adminsOnly, (req, res) => {
-    const id = validId(param(req, 'id'));
-    const g = id ? getGroup(ctx.db, id) : null;
-    if (!g) return renderGroups(req, res, { error: t(req.lang, 'groups.missing') }, 404);
+  r.post('/groups/:id/delete', (req, res) => {
+    const g = editableGroup(req, res);
+    if (!g) return;
     deleteGroup(ctx.db, g.id);
     audit(ctx.db, { actorType: 'admin', actorId: req.session!.admin.id, action: 'group.delete', ip: req.ip, details: { group: g.id, name: g.name } });
     renderGroups(req, res, { ok: t(req.lang, 'groups.deleted', { name: g.name }) });
   });
 
   // ---- case assignments ---------------------------------------------------
-  r.post('/cases/:id/members', adminsOnly, (req, res) => {
+  // Anyone working on a case may bring a colleague in or take one off it; administrators
+  // see every case and are never members.
+  r.post('/cases/:id/members', (req, res) => {
     const id = validId(param(req, 'id'));
     const c = caseFor(req, id);
     if (!c) return renderCase(req, res, '');
@@ -617,11 +629,13 @@ export function adminRouter(ctx: AppContext): Router {
     renderCase(req, res, c.id, { ok: t(req.lang, 'members.added', { username: user.username }) });
   });
 
-  r.post('/cases/:id/members/:uid/remove', adminsOnly, (req, res) => {
+  r.post('/cases/:id/members/:uid/remove', (req, res) => {
     const id = validId(param(req, 'id'));
     const c = caseFor(req, id);
     if (!c) return renderCase(req, res, '');
     const user = getUser(ctx.db, validId(param(req, 'uid')) ?? '');
+    // Taking yourself off would lock you out of the page you are on; someone else does that.
+    if (user && user.id === req.session!.admin.id) return renderCase(req, res, c.id, { error: t(req.lang, 'members.not_self') }, 400);
     if (!user || !removeCaseMember(ctx.db, c.id, user.id)) return renderCase(req, res, c.id, { error: t(req.lang, 'users.missing') }, 404);
     audit(ctx.db, { actorType: 'admin', actorId: req.session!.admin.id, action: 'case.member_remove', caseId: c.id, ip: req.ip, details: { user: user.id, username: user.username } });
     renderCase(req, res, c.id, { ok: t(req.lang, 'members.removed', { username: user.username }) });

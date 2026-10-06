@@ -289,7 +289,7 @@ export const cs: Messages = {
 
   // Accounts, roles and case assignments (0.5.0)
   'nav.users': 'Uživatelé',
-  'cases.empty_assigned': 'Zatím vám nebyl přidělen žádný případ. Administrátor vám ho může přidělit, nebo můžete výše založit nový.',
+  'cases.empty_assigned': 'Zatím vám nebyl přidělen žádný případ. Přidělit vám ho může kolega, který na případu pracuje, nebo administrátor. Můžete také výše založit nový.',
   'error.forbidden.title': 'Nepovoleno',
   'error.forbidden': 'Tato stránka je jen pro administrátory.',
   'security.must_change_notice': 'Vaše heslo vydal administrátor. Než budete pokračovat, nastavte si níže vlastní heslo.',
@@ -349,4 +349,11 @@ export const cs: Messages = {
   'users.exists': 'Účet se jménem {username} už existuje.',
   'users.invalid_username': 'Uživatelské jméno má 2–64 znaků: písmena, číslice a . _ @ -',
   'users.invalid_role': 'Neznámá role.',
+
+  // Assignments by anyone on the case; address groups kept by their creators (0.6.0)
+  'members.not_self': 'Sami sebe odebrat nemůžete. Požádejte jiného člověka na případu nebo administrátora.',
+  'members.none_assignable_user': 'Žádný další uživatelský účet k přidělení není.',
+  'groups.owner': 'vytvořil(a) {username}',
+  'groups.owner_admins': 'spravují administrátoři',
+  'groups.not_yours': 'Tuto skupinu může změnit jen ten, kdo ji vytvořil, nebo administrátor. Vybrat ji pro odkaz můžete i tak.',
 };

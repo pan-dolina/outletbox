@@ -7,7 +7,7 @@ import type { CaseMember, UserSummary } from '../../services/users.js';
 import type { Case, CaseSummary } from '../../services/cases.js';
 import type { ItemRow } from '../../services/items.js';
 import { formatRecipients } from '../../services/addresses.js';
-import type { Group } from '../../services/groups.js';
+import { canEditGroup, type Group } from '../../services/groups.js';
 import type { Link, LinkRecipient } from '../../services/links.js';
 import { linkState } from '../../services/links.js';
 import { html, jsonScript, layout, raw, type SafeHtml } from '../html.js';
@@ -18,8 +18,8 @@ export function adminNav(v: AdminViewContext): SafeHtml {
   const t = translator(v.lang);
   return html`<nav class="nav">
     <a href="/admin">${t('nav.cases')}</a>
-    ${v.role === 'admin' ? html`<a href="/admin/groups">${t('nav.groups')}</a>
-    <a href="/admin/users">${t('nav.users')}</a>
+    <a href="/admin/groups">${t('nav.groups')}</a>
+    ${v.role === 'admin' ? html`<a href="/admin/users">${t('nav.users')}</a>
     <a href="/admin/audit">${t('nav.audit')}</a>` : ''}
     <a href="/admin/security">${t('nav.security')}</a>
     <span class="muted">${v.username}</span>
@@ -325,8 +325,16 @@ export function groupsPage(v: AdminViewContext, groups: Group[], d: GroupsPageDa
         <h2>${t('groups.list')}</h2>
         ${groups.length === 0 ? html`<p class="muted">${t('groups.empty')}</p>` : groups.map((g) => {
           const draft = d.draft && d.draft.id === g.id ? d.draft : null;
+          const owner = g.created_by_name ? t('groups.owner', { username: g.created_by_name }) : t('groups.owner_admins');
+          const summary = html`<summary><strong>${g.name}</strong> <span class="muted small">${t('groups.count', { n: g.members.length })} · ${owner}</span></summary>`;
+          if (!canEditGroup({ id: v.userId, role: v.role }, g)) {
+            return html`<details class="collapsible group">${summary}
+              <pre class="mono small">${formatRecipients(g.members)}</pre>
+              <p class="muted small">${t('groups.not_yours')}</p>
+            </details>`;
+          }
           return html`<details class="collapsible group" ${draft ? raw('open') : ''}>
-            <summary><strong>${g.name}</strong> <span class="muted small">${t('groups.count', { n: g.members.length })}</span></summary>
+            ${summary}
             <form method="post" action="/admin/groups/${g.id}" class="grid">${csrf}
               <label class="grid-full">${t('groups.name')} <input name="name" required maxlength="200" value="${draft?.name ?? g.name}"></label>
               <label class="grid-full">${t('groups.members')}
@@ -343,9 +351,9 @@ export function groupsPage(v: AdminViewContext, groups: Group[], d: GroupsPageDa
 }
 
 /**
- * Who works on the case. Everyone who can open the case sees the list; only an
- * administrator assigns and unassigns, and administrators are never listed —
- * they see every case anyway.
+ * Who works on the case. Everyone who can open the case sees the list and can
+ * assign or unassign other users (not themselves). Administrators are never
+ * listed — they see every case anyway.
  */
 function membersSection(v: AdminViewContext, d: CasePageData): SafeHtml {
   const t = translator(v.lang);
@@ -357,14 +365,16 @@ function membersSection(v: AdminViewContext, d: CasePageData): SafeHtml {
     ${d.members.length === 0 ? html`<p class="muted">${t('members.empty')}</p>` : html`<ul class="members">${d.members.map((m) => html`<li>
       <span>${m.username}</span>
       ${m.disabled_at ? html`<span class="badge badge-disabled">${t('users.status.disabled')}</span>` : ''}
-      ${admin ? html`<form method="post" action="/admin/cases/${d.case.id}/members/${m.id}/remove" class="inline" data-confirm="${t('members.remove_confirm', { username: m.username })}">${csrf}<button class="btn" type="submit">${t('members.remove')}</button></form>` : ''}
+      ${m.id !== v.userId ? html`<form method="post" action="/admin/cases/${d.case.id}/members/${m.id}/remove" class="inline" data-confirm="${t('members.remove_confirm', { username: m.username })}">${csrf}<button class="btn" type="submit">${t('members.remove')}</button></form>` : ''}
     </li>`)}</ul>`}
-    ${admin ? (d.assignable.length ? html`<form method="post" action="/admin/cases/${d.case.id}/members" class="row">${csrf}
+    ${d.assignable.length ? html`<form method="post" action="/admin/cases/${d.case.id}/members" class="row">${csrf}
       <label class="grow">${t('members.user')} <select name="user_id" required>
         ${d.assignable.map((u) => html`<option value="${u.id}">${u.username}</option>`)}
       </select></label>
       <button class="btn btn-primary" type="submit">${t('members.add')}</button>
-    </form>` : html`<p class="muted small">${raw(t('members.none_assignable', { link: '<a href="/admin/users">' + t('nav.users') + '</a>' }))}</p>`) : ''}
+    </form>` : admin
+      ? html`<p class="muted small">${raw(t('members.none_assignable', { link: '<a href="/admin/users">' + t('nav.users') + '</a>' }))}</p>`
+      : html`<p class="muted small">${t('members.none_assignable_user')}</p>`}
   </section>`;
 }
 
