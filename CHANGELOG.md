@@ -11,6 +11,28 @@ The section for a version is what ends up in its
 has no section here, and rewrites a published release's notes whenever its section
 changes on `main`.
 
+## [0.6.0] - 2026-10-06
+
+### Added
+
+- **Users assign colleagues to their cases.** Anyone who works on a case can now assign
+  another active user to it, or unassign one, on the case page under **Assigned users**;
+  until now only administrators could. Nobody can unassign themselves — that would lock
+  them out of the page they are on — so someone else on the case, or an administrator,
+  does it. A case you cannot see still answers as if it did not exist, so nobody can be
+  added to a case from outside it. Each change is in the audit log under the name of
+  whoever made it. The list to choose from shows the names of all active user accounts.
+- **Users create address groups.** The **Address groups** page is open to every account.
+  Groups stay shared — everyone sees every group and can pick it for a link — but a group
+  can be changed or deleted only by the account that created it, and by administrators;
+  the list says who created each one. Groups that existed before this release, and groups
+  whose creator's account is deleted, are kept by the administrators.
+
+### Upgrading
+
+- Migration `006_group_owner` records who created each address group. It runs under the
+  automatic pre-upgrade copy, so the upgrade is a redeploy.
+
 ## [0.5.1] - 2026-10-03
 
 ### Added
@@ -233,6 +255,7 @@ changes on `main`.
   branding, an audit log, English and Polish.
 - Apache-2.0.
 
+[0.6.0]: https://github.com/pan-dolina/outletbox/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/pan-dolina/outletbox/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/pan-dolina/outletbox/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/pan-dolina/outletbox/compare/v0.4.0...v0.4.1
