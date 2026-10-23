@@ -41,5 +41,7 @@ declare global {
 }
 
 export const SESSION_COOKIE = 'outletbox_sid';
+/** The short-lived cookie of a device-bound session (DBSC), renewed by the browser with its device key. */
+export const BOUND_COOKIE = 'outletbox_bound';
 export const ACCESS_COOKIE = 'outletbox_access';
 export const FLOW_COOKIE = 'outletbox_flow';

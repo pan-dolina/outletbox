@@ -66,7 +66,8 @@ recipient:  opens URL → types own address → receives 6-digit code by e-mail 
 | **Recipients** | E-mail address + one-time code tied to the browser that requested it; per-recipient language; reusable address groups |
 | **Mail** | SMTP (STARTTLS / TLS), Microsoft 365 via Graph (app-only OAuth), Amazon SES v2, or a `log` driver that sends nothing (the default) |
 | **Uploads** | Resumable uploads from the panel ([tus](https://tus.io)) for large files, plus a streaming upload API for scripts |
-| **Accounts** | `admin` and `user` roles, users assigned per case, generated temporary passwords, TOTP second factor with recovery codes |
+| **Accounts** | `admin` and `user` roles, users assigned per case, generated temporary passwords, a passkey or an authenticator app as the second factor with recovery codes; sensitive actions ask for a fresh confirmation |
+| **Sessions** | List and end your own sessions; bound to the device's key in browsers that support it ([DBSC](https://w3c.github.io/webappsec-dbsc/)), so a copied cookie stops working within minutes |
 | **Storage** | Local disk or any S3-compatible bucket; automatic database backup before every migration |
 | **Audit** | Logins, links, codes sent, openings and downloads, recorded with the client IP; never a token or a code |
 | **Interface** | All 24 official EU languages, light and dark theme, your own name, logo and colours, also in the code e-mail |

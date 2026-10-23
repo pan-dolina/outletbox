@@ -14,6 +14,8 @@ src/
   db.ts                node:sqlite, migrations from migrations/*.sql, transaction()
   crypto.ts            ids, tokens, access codes, sha256, scrypt, e-mail normalisation
   totp.ts              RFC 6238 TOTP, base32, recovery codes
+  webauthn.ts          passkey verification (attestation none, SPKI keys) on node:crypto
+  dbsc.ts              Device Bound Session Credentials proofs (dbsc+jwt) on node:crypto
   log.ts               JSON logging + redaction
   mail/                types (interface), log, smtp, graph, ses, templates
   storage/             types (interface), local, s3, limit (byte counter + hash)
@@ -34,7 +36,7 @@ public/                style.css, admin.js, admin-upload.js (tus client), otp.js
 
 Tables ([`migrations/`](../migrations/)):
 
-- `admins`, `admin_recovery_codes`, `sessions` — as in inletbox (every panel account with
+- `admins`, `admin_recovery_codes`, `sessions`, `admin_passkeys`, `session_bindings` — as in inletbox (every panel account with
   its role admin|user, disabled_at, must_change_password, last_login_at; TOTP secret,
   replay guard, lockout counters, pending/verified sessions)
 - `case_members` (case_id, admin_id) — which user may work on which case
