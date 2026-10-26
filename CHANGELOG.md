@@ -11,6 +11,29 @@ The section for a version is what ends up in its
 has no section here, and rewrites a published release's notes whenever its section
 changes on `main`.
 
+## [0.7.1] - 2026-10-26
+
+### Security
+
+- `body-parser` 2.4.0 ([GHSA-27r3-jxmh-p828](https://github.com/advisories/GHSA-27r3-jxmh-p828),
+  high): a compressed request body followed by trailing bytes could tie up the server. It
+  parses every form the panel receives, through Express.
+- `ip-address` 10.7.5 ([GHSA-rxp7-6hxx-x8q5](https://github.com/advisories/GHSA-rxp7-6hxx-x8q5),
+  moderate): a long crafted IPv6 address could stall the process. It is used by the rate
+  limiter on every request.
+- `nodemailer` 10.2.1 (SMTP driver), past three moderate advisories in its address parser
+  ([GHSA-8c8m-p3m8-cjg8](https://github.com/advisories/GHSA-8c8m-p3m8-cjg8),
+  [GHSA-m943-m63m-w62w](https://github.com/advisories/GHSA-m943-m63m-w62w),
+  [GHSA-85x2-q946-cp5h](https://github.com/advisories/GHSA-85x2-q946-cp5h)): a crafted address
+  could be read as a different recipient. outletbox only mails addresses that staff put on a
+  link, and its own check already refuses quotes, `;`, `<` and `>`, but not the parentheses
+  of the first advisory.
+
+### Changed
+
+- Dependency updates: the AWS SDK to 3.1156 and tus (`@tus/server` 2.4.6, `@tus/s3-store`
+  2.0.8). Nothing changes for operators or recipients.
+
 ## [0.7.0] - 2026-10-23
 
 ### Added
@@ -329,6 +352,7 @@ changes on `main`.
   branding, an audit log, English and Polish.
 - Apache-2.0.
 
+[0.7.1]: https://github.com/pan-dolina/outletbox/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/pan-dolina/outletbox/compare/v0.6.3...v0.7.0
 [0.6.3]: https://github.com/pan-dolina/outletbox/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/pan-dolina/outletbox/compare/v0.6.1...v0.6.2
