@@ -11,6 +11,14 @@ The section for a version is what ends up in its
 has no section here, and rewrites a published release's notes whenever its section
 changes on `main`.
 
+## [0.7.3] - 2026-11-12
+
+### Changed
+
+- Dependency updates: the tus upload server and its storage modules (`@tus/server` 2.4.7,
+  `@tus/file-store` 2.1.2, `@tus/s3-store` 2.1.0), the AWS SDK used for S3 storage and Amazon
+  SES to 3.1163, `express-rate-limit` 8.7.3. Nothing changes for operators or recipients.
+
 ## [0.7.2] - 2026-11-02
 
 ### Changed
@@ -360,6 +368,7 @@ changes on `main`.
   branding, an audit log, English and Polish.
 - Apache-2.0.
 
+[0.7.3]: https://github.com/pan-dolina/outletbox/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/pan-dolina/outletbox/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/pan-dolina/outletbox/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/pan-dolina/outletbox/compare/v0.6.3...v0.7.0
