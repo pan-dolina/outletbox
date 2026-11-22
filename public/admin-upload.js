@@ -56,6 +56,25 @@
     if (active === 0 && succeeded > 0) window.location.reload();
   }
 
+  // At most MAX_PARALLEL uploads move bytes at a time; the rest wait as "queued". Dropping
+  // a dozen files used to start a dozen PATCHes of tens of MB at once over one uplink, and
+  // the edge proxy gave up on them before any byte reached the server (5xx, six retries,
+  // nothing stored). A slot passes straight to the next waiting upload when one ends.
+  var MAX_PARALLEL = 3;
+  var running = 0;
+  var waiting = [];
+  function acquire(run) {
+    if (running < MAX_PARALLEL) { running++; run(); } else { waiting.push(run); }
+  }
+  function release() {
+    var next = waiting.shift();
+    if (next) next(); else running--;
+  }
+  function dequeue(run) {
+    var i = waiting.indexOf(run);
+    if (i >= 0) waiting.splice(i, 1);
+  }
+
   function enqueue(file) {
     var li = el('li');
     var head = el('div', 'q-head');
@@ -94,6 +113,18 @@
       status.className = 'q-status';
     }
 
+    // This upload's place in the queue: holding a slot, or waiting for one.
+    var holding = false;
+    function run() { holding = true; startOrResume(); }
+    function schedule(label) {
+      status.textContent = msg(label || 'upload.js.queued'); status.className = 'q-status';
+      acquire(run);
+    }
+    function finished() {
+      dequeue(run);
+      if (holding) { holding = false; release(); }
+    }
+
     active++;
     var upload = new tus.Upload(file, {
       endpoint: cfg.tusEndpoint,
@@ -109,6 +140,7 @@
         return !(st >= 400 && st < 500);
       },
       onError: function (err) {
+        finished();
         showProgress(lastPct); // back to a determinate bar: nothing is in flight any more
         status.textContent = msg('upload.js.error', { msg: parseError(err) });
         status.className = 'q-status error';
@@ -124,6 +156,7 @@
         status.className = 'q-status';
       },
       onSuccess: function () {
+        finished();
         li.classList.add('done');
         showProgress(100);
         status.textContent = msg('upload.js.done') + sizeNote;
@@ -135,16 +168,17 @@
     });
 
     cancelBtn.addEventListener('click', function () {
+      finished();
       showProgress(lastPct);
       upload.abort(true).then(function () {
         status.textContent = msg('upload.js.cancelled'); status.className = 'q-status error'; cancelBtn.hidden = true; settle();
       }).catch(function () { status.textContent = msg('upload.js.cancelled_local'); status.className = 'q-status error'; cancelBtn.hidden = true; settle(); });
     });
     retryBtn.addEventListener('click', function () {
-      retryBtn.hidden = true; cancelBtn.hidden = false; status.className = 'q-status'; status.textContent = msg('upload.js.retrying');
+      retryBtn.hidden = true; cancelBtn.hidden = false;
       showProgress(lastPct);
       active++;
-      startOrResume();
+      schedule('upload.js.retrying');
     });
 
     function startOrResume() {
@@ -159,7 +193,7 @@
         upload.start();
       }).catch(function () { upload.start(); });
     }
-    startOrResume();
+    schedule();
   }
 
   function handleFiles(list) {
