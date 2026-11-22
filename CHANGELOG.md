@@ -11,6 +11,16 @@ The section for a version is what ends up in its
 has no section here, and rewrites a published release's notes whenever its section
 changes on `main`.
 
+## [0.7.4] - 2026-11-22
+
+### Fixed
+
+- Dropping many files into a case no longer starts them all at once: at most three upload at
+  a time and the rest wait as "queued". A dozen simultaneous uploads of tens of MB over one
+  connection could be cut off by a proxy in front of the server before any data arrived.
+- A request whose connection closes before the response is complete is now logged as
+  `request aborted` (level warn) instead of leaving no trace in the log.
+
 ## [0.7.3] - 2026-11-12
 
 ### Changed
@@ -368,6 +378,7 @@ changes on `main`.
   branding, an audit log, English and Polish.
 - Apache-2.0.
 
+[0.7.4]: https://github.com/pan-dolina/outletbox/compare/v0.7.3...v0.7.4
 [0.7.3]: https://github.com/pan-dolina/outletbox/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/pan-dolina/outletbox/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/pan-dolina/outletbox/compare/v0.7.0...v0.7.1
